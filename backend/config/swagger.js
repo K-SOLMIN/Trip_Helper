@@ -9,7 +9,10 @@ const swaggerSpec = swaggerJsdoc({
       version: '1.0.0',
       description: 'Duffel API 기반 항공권 조회·예약 및 eSIM 구매 백엔드\n\n**테스트 환경** — 실제 결제·발권이 이루어지지 않습니다.',
     },
-    servers: [{ url: 'http://localhost:3001' }],
+    servers: [
+      { url: 'https://travel-generation-3.onrender.com', description: '배포 서버' },
+      { url: 'http://localhost:3001', description: '로컬 개발 서버' },
+    ],
     tags: [
       { name: '항공권', description: '항공편 검색, 오퍼 조회, 예약 생성' },
       { name: '좌석', description: '좌석 배치도 조회' },

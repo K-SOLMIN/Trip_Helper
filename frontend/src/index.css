@@ -1,8 +1,4 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@import "tailwindcss";
 
 :root {
   --primary: #1A56DB;
@@ -22,10 +18,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
-  font-size: 14px;
   color: var(--text);
-  background: var(--bg);
-  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -35,20 +28,33 @@ body {
   flex-direction: column;
 }
 
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: inherit;
-}
+/*
+  @layer base 안에 넣어야 Tailwind @layer utilities (py-24, p-8, mx-auto 등)가
+  이 리셋보다 우선순위를 가져 레이아웃/패딩이 정상 적용됨.
+  밖에 두면 layer 없는 규칙이 모든 layer 규칙을 이겨버려 Tailwind 유틸이 무효화됨.
+*/
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-input, select {
-  font-family: inherit;
-  font-size: inherit;
-}
+  button {
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: inherit;
+  }
 
-a {
-  text-decoration: none;
-  color: inherit;
+  input, select {
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }

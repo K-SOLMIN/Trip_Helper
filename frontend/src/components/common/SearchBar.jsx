@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AirportModal from './AirportModal'
-import { formatDateKo } from '../utils'
+import CalendarPicker from './CalendarPicker'
+import { formatDateKo } from '../../utils'
 
 const CABIN_LABELS = {
   economy: '일반석',
@@ -27,6 +28,8 @@ export default function SearchBar({ initialValues = {} }) {
   const [showPassenger, setShowPassenger] = useState(false)
   const [originModal, setOriginModal] = useState(false)
   const [destModal, setDestModal] = useState(false)
+  const [showDepCal, setShowDepCal] = useState(false)
+  const [showRetCal, setShowRetCal] = useState(false)
   const passengerRef = useRef(null)
 
   useEffect(() => {
@@ -72,6 +75,18 @@ export default function SearchBar({ initialValues = {} }) {
 
   return (
     <div>
+      <div className="trip-tabs" style={{ marginBottom: 10 }}>
+        {[{ value: 'round', label: '왕복' }, { value: 'one_way', label: '편도' }].map(({ value, label }) => (
+          <button
+            key={value}
+            className={`trip-tab${tripType === value ? ' active' : ''}`}
+            onClick={() => { setTripType(value); if (value === 'one_way') setReturnDate('') }}
+          >
+            {label}
+          </button>
+        ))}
+        <button className="trip-tab">다구간</button>
+      </div>
       <div className="search-row">
         {/* 출발지 */}
         <div className="search-field airport-trigger" style={{ minWidth: 160 }} onClick={() => setOriginModal(true)}>
@@ -94,41 +109,25 @@ export default function SearchBar({ initialValues = {} }) {
         </div>
 
         {/* 가는날 */}
-        <div className="search-field" style={{ minWidth: 130 }}>
+        <div className="search-field" style={{ minWidth: 130, cursor: 'pointer' }} onClick={() => setShowDepCal(true)}>
           <span className="search-icon">📅</span>
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1 }}>
             {departureDate
               ? <div className="search-field-value" style={{ fontSize: 13 }}>{formatDateKo(departureDate)}</div>
               : <div className="search-field-placeholder">가는날 선택</div>
             }
-            <input
-              type="date"
-              className="date-input"
-              value={departureDate}
-              min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setDepartureDate(e.target.value)}
-              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-            />
           </div>
         </div>
 
         {/* 오는날 */}
         {tripType === 'round' && (
-          <div className="search-field" style={{ minWidth: 130 }}>
+          <div className="search-field" style={{ minWidth: 130, cursor: 'pointer' }} onClick={() => setShowRetCal(true)}>
             <span className="search-icon">📅</span>
-            <div style={{ flex: 1, position: 'relative' }}>
+            <div style={{ flex: 1 }}>
               {returnDate
                 ? <div className="search-field-value" style={{ fontSize: 13 }}>{formatDateKo(returnDate)}</div>
                 : <div className="search-field-placeholder">오는날 선택</div>
               }
-              <input
-                type="date"
-                className="date-input"
-                value={returnDate}
-                min={departureDate || new Date().toISOString().split('T')[0]}
-                onChange={(e) => setReturnDate(e.target.value)}
-                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-              />
             </div>
           </div>
         )}
@@ -184,6 +183,23 @@ export default function SearchBar({ initialValues = {} }) {
 
       <AirportModal open={originModal} onClose={() => setOriginModal(false)} onSelect={setOrigin} />
       <AirportModal open={destModal} onClose={() => setDestModal(false)} onSelect={setDestination} />
+      {showDepCal && (
+        <CalendarPicker
+          value={departureDate}
+          minDate={new Date().toISOString().split('T')[0]}
+          onChange={setDepartureDate}
+          onClose={() => setShowDepCal(false)}
+        />
+      )}
+      {showRetCal && (
+        <CalendarPicker
+          value={returnDate}
+          minDate={departureDate || new Date().toISOString().split('T')[0]}
+          rangeStart={departureDate}
+          onChange={setReturnDate}
+          onClose={() => setShowRetCal(false)}
+        />
+      )}
     </div>
   )
 }

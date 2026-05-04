@@ -1,8 +1,9 @@
-import { useParams, useLocation, Link } from 'react-router-dom'
+﻿import { useParams, useLocation, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import Header from '../components/Header'
+import Navbar from '../components/layout/Navbar'
+import BottomNav from '../components/layout/BottomNav'
 import { formatTime, formatDateShort, formatPrice } from '../utils'
-import { getOrder } from '../services/flightApi'
+import { getOrder } from '../api/flightApi'
 
 export default function Confirmation() {
   const { orderId } = useParams()
@@ -21,8 +22,8 @@ export default function Confirmation() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="loading-box" style={{ maxWidth: 640, margin: '60px auto' }}>
           <div className="spinner" />
           예약 정보를 불러오는 중...
@@ -33,8 +34,8 @@ export default function Confirmation() {
 
   if (error || !order) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="error-box" style={{ maxWidth: 640, margin: '60px auto' }}>
           예약 정보를 불러올 수 없습니다: {error}
         </div>
@@ -46,8 +47,8 @@ export default function Confirmation() {
   const paxName = pax ? `${pax.given_name} ${pax.family_name}` : '-'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
 
       <div className="confirm-page">
         <div className="confirm-icon">✅</div>
@@ -121,8 +122,9 @@ export default function Confirmation() {
           </div>
         </div>
 
-        <Link to="/" className="home-btn">홈으로 돌아가기</Link>
+        <Link to="/home" className="home-btn">홈으로 돌아가기</Link>
       </div>
+      <BottomNav />
     </div>
   )
 }

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
+import Navbar from '../components/layout/Navbar'
+import BottomNav from '../components/layout/BottomNav'
 import { formatTime, formatDateShort, parseDuration, formatDuration, formatPrice, getStopsText } from '../utils'
 import { useOffer } from '../hooks/useOffer'
-import { createOrder } from '../services/flightApi'
+import { createOrder } from '../api/flightApi'
 
 function SliceSummary({ slice }) {
   const first = slice.segments[0]
@@ -79,8 +80,8 @@ export default function BookingForm() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="loading-box" style={{ maxWidth: 900, margin: '40px auto', borderRadius: 12 }}>
           <div className="spinner" />
           항공편 정보를 불러오는 중...
@@ -91,8 +92,8 @@ export default function BookingForm() {
 
   if (offerError && !offer) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="error-box" style={{ maxWidth: 900, margin: '40px auto' }}>오류: {offerError}</div>
       </div>
     )
@@ -103,8 +104,8 @@ export default function BookingForm() {
   const baseAmount = formatPrice(offer?.base_amount, offer?.total_currency)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
 
       <div className="page-hero">
         <div className="page-hero-inner">
@@ -278,6 +279,7 @@ export default function BookingForm() {
           </div>
         </aside>
       </form>
+      <BottomNav />
     </div>
   )
 }

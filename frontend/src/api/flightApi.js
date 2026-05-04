@@ -1,16 +1,13 @@
-// 백엔드: https://travel-generation.onrender.com
-// 프론트: https://travel-generation-jj45.vercel.app
-// const BASE = '/api' // 로컬 개발용 (Vite proxy 사용)
-const BASE = 'https://travel-generation-3.onrender.com/api' // 배포용
+import { API_BASE } from './config'
 
 export async function getPlaces(query) {
   if (!query || query.length < 2) return []
-  const r = await fetch(`${BASE}/places?query=${encodeURIComponent(query)}`)
+  const r = await fetch(`${API_BASE}/places?query=${encodeURIComponent(query)}`)
   return r.json()
 }
 
 export async function searchFlights({ origin, destination, departureDate, returnDate, adults, cabinClass, tripType }) {
-  const r = await fetch(`${BASE}/search`, {
+  const r = await fetch(`${API_BASE}/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -29,14 +26,14 @@ export async function searchFlights({ origin, destination, departureDate, return
 }
 
 export async function getOffer(offerId) {
-  const r = await fetch(`${BASE}/offers/${offerId}`)
+  const r = await fetch(`${API_BASE}/offers/${offerId}`)
   const data = await r.json()
   if (data.error) throw new Error(data.error)
   return data
 }
 
 export async function createOrder({ offerId, passengers, services = [] }) {
-  const r = await fetch(`${BASE}/orders`, {
+  const r = await fetch(`${API_BASE}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ offer_id: offerId, passengers, services }),
@@ -47,13 +44,13 @@ export async function createOrder({ offerId, passengers, services = [] }) {
 }
 
 export async function getOrder(orderId) {
-  const r = await fetch(`${BASE}/orders/${orderId}`)
+  const r = await fetch(`${API_BASE}/orders/${orderId}`)
   const data = await r.json()
   if (data.error) throw new Error(data.error)
   return data
 }
 
 export async function getPopular() {
-  const r = await fetch(`${BASE}/popular`)
+  const r = await fetch(`${API_BASE}/popular`)
   return r.json()
 }

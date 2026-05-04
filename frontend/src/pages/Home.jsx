@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import SearchBar from '../components/SearchBar'
-import BottomNav from '../components/BottomNav'
+import Navbar from '../components/layout/Navbar'
+import SearchBar from '../components/common/SearchBar'
+import BottomNav from '../components/layout/BottomNav'
 import { FLAGS } from '../utils'
-import { getPopular } from '../services/flightApi'
+import { getPopular } from '../api/flightApi'
 import { useSearch } from '../store/SearchContext'
 
 const REGIONS = [
@@ -31,8 +31,6 @@ export default function Home() {
   const filtered = region === 'all' ? popular : popular.filter((d) => d.region === region)
 
   const handlePopularClick = (dest) => {
-    const today = new Date()
-    const dep = dest.dates.split(' - ')[0]
     navigate(
       `/search?origin=ICN&destination=${dest.code}&destination_name=${encodeURIComponent(dest.city)}&departure_date=${
         new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
@@ -48,15 +46,7 @@ export default function Home() {
 
   return (
     <div className="page-home">
-      <Header
-        tripType={tripType}
-        onTripTypeChange={setTripType}
-        navLinks={[
-          { label: 'eSIM', to: '/esim' },
-          { label: '숙소', to: '/hotels' },
-          { label: '투어 및 액티비티', to: '/tours' },
-        ]}
-      />
+      <Navbar />
 
       <div className="search-section">
         <div className="search-card">

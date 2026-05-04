@@ -7,6 +7,22 @@ function genBookingRef() {
   return r;
 }
 
+function genStayBookingRef() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let r = 'STAY';
+  for (let i = 0; i < 6; i++) r += chars[Math.floor(Math.random() * chars.length)];
+  return r;
+}
+
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendBookingEmail({ to, passengerName, bookingRef, slices, totalAmount, totalCurrency }) {
   if (!mailer) return;
 
@@ -150,4 +166,68 @@ async function sendESimEmail({ email, code, countries, totalPrice }) {
   });
 }
 
-module.exports = { genBookingRef, sendBookingEmail, sendESimEmail };
+async function sendStayBookingEmail({ to, guestName, bookingRef, hotelName, location, checkIn, checkOut, nights, guests, totalPrice, currency, image }) {
+  if (!mailer) return false;
+
+  const fmtDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(`${value}T00:00:00`);
+    return date.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short' });
+  };
+
+  const amount = Number(totalPrice || 0).toLocaleString('ko-KR');
+  const priceText = currency === 'KRW' ? `${amount}원` : `${amount} ${esc(currency || '')}`;
+  const imageHtml = image
+    ? `<img src="${esc(image)}" alt="${esc(hotelName)}" style="width:100%;height:190px;object-fit:cover;display:block;">`
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:'Apple SD Gothic Neo',Malgun Gothic,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#1A56DB,#1e40af);padding:32px 36px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:8px;">🏨</div>
+      <div style="color:#fff;font-size:22px;font-weight:800;">숙소 예약이 완료되었습니다</div>
+      <div style="color:rgba(255,255,255,0.75);font-size:14px;margin-top:6px;">테스트용 예약번호가 발급되었습니다</div>
+    </div>
+    ${imageHtml}
+    <div style="padding:32px 36px;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;">예약 번호</div>
+        <div style="font-size:30px;font-weight:900;color:#1A56DB;letter-spacing:3px;font-family:monospace;">${esc(bookingRef)}</div>
+      </div>
+      <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;">안녕하세요, ${esc(guestName)}님</div>
+        <div style="font-size:13px;color:#6b7280;line-height:1.7;">
+          ${esc(hotelName)} 예약 확인 메일입니다.<br>
+          본 이메일은 <strong>테스트 환경</strong>에서 발송된 이메일로, 실제 Hotelbeds 예약은 생성되지 않습니다.
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #f3f4f6;border-radius:10px;overflow:hidden;">
+        <tbody>
+          <tr><td style="padding:12px;color:#6b7280;border-bottom:1px solid #f3f4f6;">숙소</td><td style="padding:12px;text-align:right;font-weight:700;border-bottom:1px solid #f3f4f6;">${esc(hotelName)}</td></tr>
+          <tr><td style="padding:12px;color:#6b7280;border-bottom:1px solid #f3f4f6;">지역</td><td style="padding:12px;text-align:right;font-weight:700;border-bottom:1px solid #f3f4f6;">${esc(location || '-')}</td></tr>
+          <tr><td style="padding:12px;color:#6b7280;border-bottom:1px solid #f3f4f6;">일정</td><td style="padding:12px;text-align:right;font-weight:700;border-bottom:1px solid #f3f4f6;">${fmtDate(checkIn)} - ${fmtDate(checkOut)}</td></tr>
+          <tr><td style="padding:12px;color:#6b7280;border-bottom:1px solid #f3f4f6;">숙박</td><td style="padding:12px;text-align:right;font-weight:700;border-bottom:1px solid #f3f4f6;">${Number(nights || 1)}박 · 성인 ${Number(guests || 1)}명</td></tr>
+          <tr><td style="padding:12px;color:#6b7280;">총 결제금액</td><td style="padding:12px;text-align:right;font-weight:800;color:#1A56DB;">${priceText}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="background:#f9fafb;padding:20px 36px;text-align:center;border-top:1px solid #f3f4f6;">
+      <div style="font-size:12px;color:#9ca3af;">Bong's 폰가이즈 숙소 예약 시스템 · 테스트 환경</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await mailer.sendMail({
+    from: `"Bong's 폰가이즈 숙소" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `[Bong's 폰가이즈] 숙소 예약번호 ${bookingRef} - 테스트 예약이 완료되었습니다`,
+    html,
+  });
+  return true;
+}
+
+module.exports = { genBookingRef, genStayBookingRef, sendBookingEmail, sendESimEmail, sendStayBookingEmail };

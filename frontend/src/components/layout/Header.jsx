@@ -10,7 +10,7 @@ export default function Header({ tripType, onTripTypeChange, navLinks = [] }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           {/* 메인페이지와 동일한 로고 */}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/home')}
             className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           >
             <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">

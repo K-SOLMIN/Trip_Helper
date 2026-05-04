@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
+import Navbar from '../components/layout/Navbar'
+import BottomNav from '../components/layout/BottomNav'
 import { formatTime, formatDateShort, formatPrice } from '../utils'
 import { useOffer } from '../hooks/useOffer'
 import { useSeatMaps } from '../hooks/useSeatMaps'
@@ -167,8 +168,8 @@ export default function SeatSelection() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="loading-box" style={{ maxWidth: 900, margin: '40px auto' }}>
           <div className="spinner" />
           좌석 배치도를 불러오는 중...
@@ -179,8 +180,8 @@ export default function SeatSelection() {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-        <Header />
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+        <Navbar />
         <div className="error-box" style={{ maxWidth: 900, margin: '40px auto' }}>{error}</div>
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <button className="select-btn" style={{ width: 'auto', padding: '10px 24px' }}
@@ -193,8 +194,8 @@ export default function SeatSelection() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
 
       <div className="page-hero">
         <div className="page-hero-inner">
@@ -292,6 +293,7 @@ export default function SeatSelection() {
           </div>
         </aside>
       </div>
+      <BottomNav />
     </div>
   )
 }

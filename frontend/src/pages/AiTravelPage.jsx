@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import BottomNav from '../components/BottomNav'
+﻿import { useNavigate } from 'react-router-dom'
+import BottomNav from '../components/layout/BottomNav'
 
 export default function AiTravelPage() {
   const navigate = useNavigate()
@@ -14,7 +14,7 @@ export default function AiTravelPage() {
           AI가 최적의 일정을 자동으로 만들어줘요.
         </p>
         <span className="ai-coming-badge">현재 준비 중입니다</span>
-        <button className="ai-coming-back" onClick={() => navigate('/')}>
+        <button className="ai-coming-back" onClick={() => navigate('/home')}>
           홈으로 돌아가기
         </button>
       </div>

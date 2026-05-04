@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { searchFlights } from '../services/flightApi'
+﻿import { useState, useEffect } from 'react'
+import { searchFlights } from '../api/flightApi'
 
 export function useFlightSearch({ origin, destination, departureDate, returnDate, adults, cabinClass, tripType }) {
   const [offers, setOffers] = useState([])

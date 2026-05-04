@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import Header from '../components/Header'
-import SearchBar from '../components/SearchBar'
-import FlightCard from '../components/FlightCard'
+import Navbar from '../components/layout/Navbar'
+import BottomNav from '../components/layout/BottomNav'
+import SearchBar from '../components/common/SearchBar'
+import FlightCard from '../components/common/FlightCard'
 import { parseDuration, formatDateKo } from '../utils'
 import { useFlightSearch } from '../hooks/useFlightSearch'
 
@@ -69,8 +70,8 @@ export default function SearchResults() {
     : formatDateKo(departureDate)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
 
       <div className="page-hero">
         <div className="page-hero-inner">
@@ -167,6 +168,7 @@ export default function SearchResults() {
           </div>
         </main>
       </div>
+      <BottomNav />
     </div>
   )
 }

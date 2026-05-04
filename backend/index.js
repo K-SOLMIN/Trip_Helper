@@ -11,10 +11,14 @@ const orderRoutes = require('./routes/orderRoutes');
 const seatRoutes = require('./routes/seatRoutes');
 const popularRoutes = require('./routes/popularRoutes');
 const esimRoutes = require('./routes/esimRoutes');
+const accomodationRoutes = require('./routes/accomodationRoutes');
+const mapsRoutes = require('./routes/mapsRoutes');
+const tourRoutes = require('./routes/tourRoutes');
 
 const app = express();
-// app.use(cors()) // 로컬 개발용 (전체 허용)
-app.use(cors({ origin: 'https://travel-generation-jj45.vercel.app' })) // 배포용
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -25,13 +29,17 @@ app.use('/api', orderRoutes);
 app.use('/api', seatRoutes);
 app.use('/api', popularRoutes);
 app.use('/api', esimRoutes);
+app.use('/api', accomodationRoutes);
+app.use('/api', mapsRoutes);
+app.use('/api', tourRoutes);
 
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Server:  http://localhost:${PORT}`);
-  console.log(`Swagger: http://localhost:${PORT}/api-docs`);
+  const BASE = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+  console.log(`Server:  ${BASE}`);
+  console.log(`Swagger: ${BASE}/api-docs`);
 });
 
 process.stdin.resume();

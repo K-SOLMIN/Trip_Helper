@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { getPlaces } from '../services/flightApi'
+﻿import { useState, useRef, useEffect } from 'react'
+import { getPlaces } from '../../api/flightApi'
 
 const QUICK_CITIES = [
   {

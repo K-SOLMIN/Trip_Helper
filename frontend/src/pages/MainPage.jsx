@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Smartphone, Plane, MapPin, Sparkles, Calendar,
-  Navigation, Wifi, ChevronRight, ChevronLeft, Menu, X, Users,
-  Hotel, Shield, Globe, Music, Pause,
+  Plane, MapPin, Sparkles, Calendar,
+  Navigation, Wifi, ChevronRight, ChevronLeft, Users,
+  Hotel, Globe, Music, Pause, Smartphone,
 } from 'lucide-react';
+import Navbar from '../components/layout/Navbar';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -107,8 +108,8 @@ const SERVICE_CARDS = [
     description: '여행 일정에 맞는 최적의 숙소를 AI가 추천하고 간편하게 예약해드립니다.',
     linkText: '숙소 예약하기',
     linkColor: 'text-orange-600',
-    to: '/hotels',
-    comingSoon: true,
+    to: '/accomodation',
+    comingSoon: false,
   },
   {
     gradient: 'bg-gradient-to-br from-violet-50 to-purple-50',
@@ -120,8 +121,8 @@ const SERVICE_CARDS = [
     description: '현지 투어, 액티비티, 입장권을 한 번에 예약하고 특별한 추억을 만드세요.',
     linkText: '투어 및 액티비티 예약하기',
     linkColor: 'text-violet-600',
-    to: '/tours',
-    comingSoon: true,
+    to: '/tour-ticket',
+    comingSoon: false,
   },
   // 새 서비스 추가 예시 — comingSoon: true 로 설정하면 준비중 배지 자동 표시
   // {
@@ -141,83 +142,6 @@ const SERVICE_CARDS = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function NavLink({ href, to, children }) {
-  const navigate = useNavigate();
-  const handleClick = (e) => {
-    if (to) {
-      e.preventDefault();
-      navigate(to);
-    }
-  };
-  return (
-    <a
-      href={href || to || '#'}
-      onClick={handleClick}
-      className="relative text-sm font-medium text-gray-600 px-3 py-1.5 rounded-lg transition-all duration-200 hover:text-gray-900 hover:bg-gray-50 group"
-    >
-      {children}
-      <span className="absolute bottom-0.5 left-3 right-3 h-[2px] bg-gradient-to-r from-blue-600 to-purple-600 rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
-    </a>
-  );
-}
-
-function Navbar({ mobileMenuOpen, onToggle }) {
-  const navigate = useNavigate();
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
-      <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-        >
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-            <Smartphone className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold text-gray-900 tracking-tight">폰가이즈</span>
-        </button>
-
-        {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-1">
-          <NavLink to="/flights">항공권</NavLink>
-          <NavLink to="/esim">eSIM</NavLink>
-          <NavLink to="/hotels">숙소</NavLink>
-          <NavLink to="/tours">투어 및 액티비티</NavLink>
-          <button
-            onClick={() => navigate('/login')}
-            className="relative text-sm font-medium text-gray-600 px-3 py-1.5 rounded-lg transition-all duration-200 hover:text-gray-900 hover:bg-gray-50 group ml-2"
-          >
-            로그인
-          </button>
-          <button
-            className="ml-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:shadow-lg hover:shadow-blue-200 hover:scale-[1.03] active:scale-95 transition-all duration-200"
-          >
-            시작하기
-          </button>
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button className="md:hidden p-1 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onClick={onToggle}>
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-1">
-          <NavLink to="/flights">항공권</NavLink>
-          <NavLink to="/esim">eSIM</NavLink>
-          <NavLink to="/hotels">숙소</NavLink>
-          <NavLink to="/tours">투어 및 액티비티</NavLink>
-          <button onClick={() => navigate('/login')} className="text-left text-sm font-medium text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">로그인</button>
-          <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-semibold py-3 rounded-full mt-2 hover:shadow-lg transition-all">
-            시작하기
-          </button>
-        </div>
-      )}
-    </nav>
-  );
-}
 
 function PhoneMockupCard({ schedule }) {
   return (
@@ -728,11 +652,9 @@ function MusicPlayer() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MainPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-white">
-      <Navbar mobileMenuOpen={mobileMenuOpen} onToggle={() => setMobileMenuOpen(v => !v)} />
+      <Navbar />
       <HeroSection />
       <FeaturesSection />
       <StepsSection />

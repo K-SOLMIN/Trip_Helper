@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { getSeatMaps } from '../services/seatApi'
+﻿import { useState, useEffect } from 'react'
+import { getSeatMaps } from '../api/seatApi'
 
 export function useSeatMaps(offerId) {
   const [seatMaps, setSeatMaps] = useState([])

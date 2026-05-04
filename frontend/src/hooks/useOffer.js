@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { getOffer } from '../services/flightApi'
+﻿import { useState, useEffect } from 'react'
+import { getOffer } from '../api/flightApi'
 
 export function useOffer(offerId) {
   const [offer, setOffer] = useState(null)

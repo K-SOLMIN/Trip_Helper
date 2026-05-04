@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import { purchaseEsim } from '../services/esimApi'
+import Navbar from '../components/layout/Navbar'
+import BottomNav from '../components/layout/BottomNav'
+import CalendarPicker from '../components/common/CalendarPicker'
+import { purchaseEsim } from '../api/esimApi'
 
 const COUNTRIES = [
   { code: 'JP', name: '일본',             flag: '🇯🇵', region: 'asia' },
@@ -118,6 +120,8 @@ export default function ESimPage() {
   const [tempType, setTempType] = useState('local')
   const [tempStart, setTempStart] = useState('')
   const [tempEnd, setTempEnd] = useState('')
+  const [showStartCal, setShowStartCal] = useState(false)
+  const [showEndCal, setShowEndCal] = useState(false)
   const [tempPlan, setTempPlan] = useState(null)
 
   const [email, setEmail] = useState('')
@@ -185,12 +189,8 @@ export default function ESimPage() {
 
   // ── Step 0: Landing ──────────────────────────────────────────────────────────
   if (step === 0) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header navLinks={[
-        { label: '항공권', to: '/flights' },
-        { label: '숙소', to: '/hotels' },
-        { label: '투어 및 액티비티', to: '/tours' },
-      ]} />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
       <div className="esim-landing">
         <div className="esim-landing-notice">
           <span className="esim-notice-icon">ⓘ</span>
@@ -279,17 +279,14 @@ export default function ESimPage() {
           </div>
         </div>
       )}
+      <BottomNav />
     </div>
   )
 
   // ── Step 1: Country selection ────────────────────────────────────────────────
   if (step === 1) return (
-    <div style={{ minHeight: '100vh', background: '#fff' }}>
-      <Header navLinks={[
-        { label: '항공권', to: '/flights' },
-        { label: '숙소', to: '/hotels' },
-        { label: '투어 및 액티비티', to: '/tours' },
-      ]} />
+    <div style={{ minHeight: '100vh', background: '#fff', paddingTop: 64 }}>
+      <Navbar />
       <div className="esim-country-page">
         <button className="esim-back" onClick={() => setStep(0)}>←</button>
         <h2 className="esim-page-title">여행할 국가를 모두<br />선택해주세요.</h2>
@@ -335,17 +332,14 @@ export default function ESimPage() {
           </button>
         </div>
       </div>
+      <BottomNav />
     </div>
   )
 
   // ── Step 2: Product combination ──────────────────────────────────────────────
   if (step === 2) return (
-    <div style={{ minHeight: '100vh', background: '#fff' }}>
-      <Header navLinks={[
-        { label: '항공권', to: '/flights' },
-        { label: '숙소', to: '/hotels' },
-        { label: '투어 및 액티비티', to: '/tours' },
-      ]} />
+    <div style={{ minHeight: '100vh', background: '#fff', paddingTop: 64 }}>
+      <Navbar />
       <div className="esim-combo-page">
         <button className="esim-back" onClick={() => setStep(1)}>←</button>
         <h2 className="esim-combo-title">
@@ -453,23 +447,21 @@ export default function ESimPage() {
             </h3>
             <div className="esim-dates">
               <div className="esim-date-row">
-                <input
-                  type="date"
+                <button
                   className="esim-date-input"
-                  value={tempStart}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setTempStart(e.target.value)}
-                />
+                  onClick={() => setShowStartCal(true)}
+                >
+                  {tempStart || '시작 날짜 선택'}
+                </button>
                 <span className="esim-date-label">부터</span>
               </div>
               <div className="esim-date-row">
-                <input
-                  type="date"
+                <button
                   className="esim-date-input"
-                  value={tempEnd}
-                  min={tempStart || new Date().toISOString().split('T')[0]}
-                  onChange={e => setTempEnd(e.target.value)}
-                />
+                  onClick={() => setShowEndCal(true)}
+                >
+                  {tempEnd || '종료 날짜 선택'}
+                </button>
                 <span className="esim-date-label">까지 여행해요</span>
               </div>
               {tempStart && tempEnd && getDays(tempStart, tempEnd) > 0 && (
@@ -484,6 +476,24 @@ export default function ESimPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showStartCal && (
+        <CalendarPicker
+          value={tempStart}
+          minDate={new Date().toISOString().split('T')[0]}
+          onChange={v => { setTempStart(v); if (tempEnd && v > tempEnd) setTempEnd('') }}
+          onClose={() => setShowStartCal(false)}
+        />
+      )}
+      {showEndCal && (
+        <CalendarPicker
+          value={tempEnd}
+          minDate={tempStart || new Date().toISOString().split('T')[0]}
+          rangeStart={tempStart}
+          onChange={setTempEnd}
+          onClose={() => setShowEndCal(false)}
+        />
       )}
 
       {/* ── Plan modal ── */}
@@ -517,17 +527,14 @@ export default function ESimPage() {
           </div>
         </div>
       )}
+      <BottomNav />
     </div>
   )
 
   // ── Step 3: Confirmation ─────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Header navLinks={[
-        { label: '항공권', to: '/flights' },
-        { label: '숙소', to: '/hotels' },
-        { label: '투어 및 액티비티', to: '/tours' },
-      ]} />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', paddingTop: 64 }}>
+      <Navbar />
       <div className="esim-confirm-page">
         <div className="esim-confirm-icon">✅</div>
         <h2 className="esim-confirm-title">eSIM 구매가 완료되었습니다!</h2>
@@ -568,9 +575,10 @@ export default function ESimPage() {
           </ol>
         </div>
 
-        <button className="esim-home-btn" onClick={() => navigate('/')}>홈으로 돌아가기</button>
+        <button className="esim-home-btn" onClick={() => navigate('/home')}>홈으로 돌아가기</button>
         <div className="esim-confirm-note">테스트 모드 - 실제 결제가 이루어지지 않습니다</div>
       </div>
+      <BottomNav />
     </div>
   )
 }

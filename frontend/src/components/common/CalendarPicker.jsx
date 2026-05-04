@@ -50,12 +50,21 @@ export default function CalendarPicker({ value, onChange, onClose, minDate, rang
   }, [onClose])
 
   const prevMonth = () => {
-    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
-    else setViewMonth(m => m - 1)
+    if (viewMonth === 0) {
+      setViewYear(y => y - 1)
+      setViewMonth(11)
+    } else {
+      setViewMonth(m => m - 1)
+    }
   }
+
   const nextMonth = () => {
-    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
-    else setViewMonth(m => m + 1)
+    if (viewMonth === 11) {
+      setViewYear(y => y + 1)
+      setViewMonth(0)
+    } else {
+      setViewMonth(m => m + 1)
+    }
   }
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth)
@@ -65,7 +74,6 @@ export default function CalendarPicker({ value, onChange, onClose, minDate, rang
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  // range preview: rangeStart ~ (hovered or selected)
   const rangeEnd = hovered || selected
   const rangeMin = rangeStart && rangeEnd && rangeStart < rangeEnd ? rangeStart : null
   const rangeMax = rangeMin ? rangeEnd : null
@@ -87,16 +95,15 @@ export default function CalendarPicker({ value, onChange, onClose, minDate, rang
     onChange('')
   }
 
-  // nights badge
   const previewNights = getNights(rangeStart, hovered || selected)
 
   return (
     <div className="cal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="cal-panel" ref={ref}>
         <div className="cal-header">
-          <button className="cal-nav" onClick={prevMonth}>‹</button>
+          <button className="cal-nav" onClick={prevMonth} aria-label="이전 달">‹</button>
           <span className="cal-title">{viewYear}년 {viewMonth + 1}월</span>
-          <button className="cal-nav" onClick={nextMonth}>›</button>
+          <button className="cal-nav" onClick={nextMonth} aria-label="다음 달">›</button>
         </div>
 
         {rangeStart && previewNights !== null && (

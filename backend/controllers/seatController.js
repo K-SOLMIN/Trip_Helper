@@ -1,20 +1,20 @@
-const flightService = require('../services/flightService');
+const flightService = require('../services/flightService')
+const { parseDuffelError } = require('../utils/errors')
 
 async function getSeatMaps(req, res, next) {
   try {
-    const data = await flightService.getSeatMaps(req.params.offerId);
-    res.json(data);
+    const data = await flightService.getSeatMaps(req.params.offerId)
+    res.json(data)
   } catch (err) {
-    const duffelErrors = err.errors;
-    if (duffelErrors?.length) {
-      const first = duffelErrors[0];
-      console.error('Seat map error:', first.code, '-', first.message);
-      if (first.code === 'not_supported' || first.code === 'not_found') {
-        return res.json([]);
+    const duffelErr = parseDuffelError(err)
+    if (duffelErr) {
+      console.error('Seat map error:', duffelErr.code, '-', duffelErr.message)
+      if (duffelErr.code === 'not_supported' || duffelErr.code === 'not_found') {
+        return res.json([])
       }
     }
-    next(err);
+    next(err)
   }
 }
 
-module.exports = { getSeatMaps };
+module.exports = { getSeatMaps }

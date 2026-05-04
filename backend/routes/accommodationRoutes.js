@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { searchStays, getStayDetail, createMockStayBooking } = require('../controllers/accomodationController');
+const { searchStays, getStayDetail, createMockStayBooking } = require('../controllers/accommodationController');
 
 const router = Router();
 
@@ -9,7 +9,7 @@ const router = Router();
  *   post:
  *     tags: [숙소]
  *     summary: 숙소 검색 (Hotelbeds)
- *     description: 국가명, 체크인/체크아웃, 성인 수를 기준으로 Hotelbeds Availability API에서 숙소를 검색합니다. 응답의 price는 검색 기간 전체 기준 최저 총액입니다.
+ *     description: 국가, 체크인/체크아웃, 성인 수를 기준으로 Hotelbeds Availability API에서 숙소를 검색합니다. 응답의 price는 검색 기간 전체 기준 최저 총액입니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -35,8 +35,8 @@ router.post('/stays/search', searchStays);
  * /api/stays/bookings:
  *   post:
  *     tags: [숙소]
- *     summary: 숙소 가상 예약 생성
- *     description: Hotelbeds Availability API로 선택한 일정의 예약 가능 여부를 다시 확인한 뒤 테스트 예약번호를 발급하고 확인 이메일을 발송합니다. 실제 Hotelbeds 예약은 생성하지 않습니다.
+ *     summary: 숙소 가예약 생성
+ *     description: Hotelbeds Availability API로 선택한 일정의 예약 가능 여부를 다시 확인하고, 테스트 예약번호를 발급한 뒤 확인 이메일을 발송합니다. 실제 Hotelbeds 예약은 생성하지 않습니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -45,13 +45,13 @@ router.post('/stays/search', searchStays);
  *             $ref: '#/components/schemas/StayBookingRequest'
  *     responses:
  *       200:
- *         description: 가상 예약 완료 정보
+ *         description: 가예약 완료 정보
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/StayBooking'
  *       409:
- *         description: 선택한 일정에 예약 가능한 객실 없음
+ *         description: 선택한 일정에 예약 가능한 객실이 없음
  *         content:
  *           application/json:
  *             schema:

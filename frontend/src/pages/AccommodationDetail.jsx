@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import BottomNav from '../components/layout/BottomNav'
 import Navbar from '../components/layout/Navbar'
 import { formatKrwPrice } from '../utils/currency'
-import { createStayBooking, getStayDetail, getMapEmbedUrl } from '../api/accomodationApi'
+import { createStayBooking, getStayDetail, getMapEmbedUrl } from '../api/accommodationApi'
 import { pickHotelImage } from '../data/images'
 import '../styles/accommodation.css'
 
@@ -26,7 +26,7 @@ function Stat({ label, value }) {
   )
 }
 
-export default function AccomodationDetail() {
+export default function AccommodationDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const { hotelId } = useParams()
@@ -37,6 +37,7 @@ export default function AccomodationDetail() {
   const checkOut = searchParams.get('checkOut') || ''
   const guests = Number(searchParams.get('guests') || 1)
   const countryKey = searchParams.get('countryKey') || ''
+  const countryCode = searchParams.get('countryCode') || countryKey
   const destination = searchParams.get('destination') || stateHotel?.location || countryKey || '여행지'
 
   const [detail, setDetail] = useState(null)
@@ -123,6 +124,7 @@ export default function AccomodationDetail() {
         hotelName: hotel.name || detail?.name,
         location: hotel.location || [detail?.zone, detail?.destination].filter(Boolean).join(' · ') || destination,
         country: countryKey,
+        countryCode,
         checkIn,
         checkOut,
         guests,
@@ -131,7 +133,7 @@ export default function AccomodationDetail() {
         image: uniqueGallery[0],
       })
       sessionStorage.setItem('stay_booking', JSON.stringify(data))
-      navigate(`/accomodation/confirmation/${data.booking_reference}`, { state: { booking: data } })
+      navigate(`/accommodation/confirmation/${data.booking_reference}`, { state: { booking: data } })
     } catch (err) {
       setBookingError(err.message || '숙소 예약 처리 중 오류가 발생했습니다.')
     } finally {
@@ -152,7 +154,7 @@ export default function AccomodationDetail() {
         <div className="acc-detail-error">
           <strong>숙소 정보를 불러올 수 없습니다.</strong>
           <span>{error}</span>
-          <button onClick={() => navigate('/accomodation')}>숙소 검색으로 돌아가기</button>
+          <button onClick={() => navigate('/accommodation')}>숙소 검색으로 돌아가기</button>
         </div>
       ) : (
         <>
@@ -316,3 +318,7 @@ export default function AccomodationDetail() {
     </div>
   )
 }
+
+
+
+

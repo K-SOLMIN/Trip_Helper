@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import BottomNav from '../components/layout/BottomNav'
 import Navbar from '../components/layout/Navbar'
 import { formatKrwPrice, toKrw } from '../utils/currency'
-import { searchStays } from '../api/accomodationApi'
+import { searchStays } from '../api/accommodationApi'
 import { pickHotelImage } from '../data/images'
 import '../styles/accommodation.css'
 
@@ -18,6 +18,7 @@ export default function AccSearchResults() {
   const [searchParams] = useSearchParams()
 
   const countryKey  = searchParams.get('countryKey')  || ''
+  const countryCode = searchParams.get('countryCode') || countryKey
   const destination = searchParams.get('destination') || countryKey
   const checkIn     = searchParams.get('checkIn')     || ''
   const checkOut    = searchParams.get('checkOut')    || ''
@@ -33,10 +34,10 @@ export default function AccSearchResults() {
 
   useEffect(() => {
     if (!countryKey) { setError('여행지를 선택해주세요.'); setLoading(false); return }
-    searchStays({ country: countryKey, checkIn, checkOut, guests })
+    searchStays({ country: countryKey, countryCode, checkIn, checkOut, guests })
       .then(data => { setHotels(data); setLoading(false) })
       .catch(err => { setError(err.message || '검색 중 오류가 발생했습니다.'); setLoading(false) })
-  }, [countryKey, checkIn, checkOut, guests])
+  }, [countryKey, countryCode, checkIn, checkOut, guests])
 
   const toggleStar = (s) => {
     setStarFilter(prev => {
@@ -64,11 +65,12 @@ export default function AccSearchResults() {
     const params = new URLSearchParams({
       destination,
       countryKey,
+      countryCode,
       checkIn,
       checkOut,
       guests: String(guests),
     })
-    navigate(`/accomodation/${hotel.id}?${params}`, { state: { hotel } })
+    navigate(`/accommodation/${hotel.id}?${params}`, { state: { hotel } })
   }
 
   return (
@@ -82,7 +84,7 @@ export default function AccSearchResults() {
         <span className="asr-summary-info">{checkIn} ~ {checkOut}</span>
         <span className="asr-summary-dot">·</span>
         <span className="asr-summary-info">성인 {guests}명</span>
-        <button className="asr-modify-btn" onClick={() => navigate('/accomodation')}>수정</button>
+        <button className="asr-modify-btn" onClick={() => navigate('/accommodation')}>수정</button>
       </div>
 
       <div className="asr-body">
@@ -167,7 +169,7 @@ export default function AccSearchResults() {
             <div className="asr-error">
               <p className="asr-error-icon">⚠️</p>
               <p className="asr-error-msg">{error}</p>
-              <button className="asr-error-btn" onClick={() => navigate('/accomodation')}>돌아가기</button>
+              <button className="asr-error-btn" onClick={() => navigate('/accommodation')}>돌아가기</button>
             </div>
           ) : (
             <>
@@ -224,3 +226,7 @@ export default function AccSearchResults() {
     </div>
   )
 }
+
+
+
+

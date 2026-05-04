@@ -149,7 +149,7 @@
 .mp-subtab--dim { cursor: default; }
 .mp-subtab--dim:hover { color: #999; }
 
-/* ?? Carousel ??full width, no radius ?? */
+/* Carousel - full width, no radius */
 .mp-carousel {
   position: relative;
   overflow: hidden;

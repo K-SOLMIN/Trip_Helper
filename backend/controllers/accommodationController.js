@@ -1,8 +1,8 @@
-const accomodationService = require('../services/accomodationService');
+﻿const accommodationService = require('../services/accommodationService');
 
 async function searchStays(req, res, next) {
   try {
-    const data = await accomodationService.searchStays(req.body);
+    const data = await accommodationService.searchStays(req.body);
     res.json(data);
   } catch (err) {
     next(err);
@@ -11,7 +11,7 @@ async function searchStays(req, res, next) {
 
 async function getStayDetail(req, res, next) {
   try {
-    const data = await accomodationService.getStayDetail(req.params.hotelCode);
+    const data = await accommodationService.getStayDetail(req.params.hotelCode);
     res.json(data);
   } catch (err) {
     next(err);
@@ -20,7 +20,7 @@ async function getStayDetail(req, res, next) {
 
 async function createMockStayBooking(req, res, next) {
   try {
-    const data = await accomodationService.createMockStayBooking(req.body);
+    const data = await accommodationService.createMockStayBooking(req.body);
     res.json(data);
   } catch (err) {
     next(err);
@@ -28,3 +28,5 @@ async function createMockStayBooking(req, res, next) {
 }
 
 module.exports = { searchStays, getStayDetail, createMockStayBooking };
+
+

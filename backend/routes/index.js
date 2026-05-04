@@ -1,11 +1,11 @@
-const { Router } = require('express');
+﻿const { Router } = require('express');
 
 const flightRoutes = require('./flightRoutes');
 const orderRoutes = require('./orderRoutes');
 const seatRoutes = require('./seatRoutes');
 const popularRoutes = require('./popularRoutes');
 const esimRoutes = require('./esimRoutes');
-const accomodationRoutes = require('./accomodationRoutes');
+const accommodationRoutes = require('./accommodationRoutes');
 const mapsRoutes = require('./mapsRoutes');
 const tourRoutes = require('./tourRoutes');
 
@@ -16,8 +16,10 @@ router.use(orderRoutes);
 router.use(seatRoutes);
 router.use(popularRoutes);
 router.use(esimRoutes);
-router.use(accomodationRoutes);
+router.use(accommodationRoutes);
 router.use(mapsRoutes);
 router.use(tourRoutes);
 
 module.exports = router;
+
+

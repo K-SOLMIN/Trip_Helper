@@ -60,11 +60,7 @@ function SeatMap({ seatMap, offer, selected, onSelect }) {
 
   const passengerId = offer?.passengers?.[0]?.id
 
-  // 열 헤더 뽑기 (첫 번째 row의 sections에서)
   const firstRow = cabin.rows?.[0]
-  const colHeaders = firstRow?.sections?.flatMap(section =>
-    section.elements.map(el => el.type === 'seat' ? el.designator?.replace(/\d+/, '') : '')
-  ) || []
 
   return (
     <div className="seat-map-wrap">

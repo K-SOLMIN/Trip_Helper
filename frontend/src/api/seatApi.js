@@ -1,8 +1,6 @@
-import { API_BASE } from './config'
+import { apiGet } from './apiClient'
 
 export async function getSeatMaps(offerId) {
-  const r = await fetch(`${API_BASE}/seat-maps/${offerId}`)
-  const data = await r.json()
-  if (data && data.error) throw new Error(data.error)
+  const data = await apiGet(`/seat-maps/${offerId}`)
   return Array.isArray(data) ? data : []
 }

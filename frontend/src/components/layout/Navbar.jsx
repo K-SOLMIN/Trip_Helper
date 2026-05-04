@@ -1,11 +1,11 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Smartphone, Menu, X } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: '항공권', to: '/flights' },
   { label: 'eSIM', to: '/esim' },
-  { label: '숙소', to: '/accomodation' },
+  { label: '숙소', to: '/accommodation' },
   { label: '투어 및 액티비티', to: '/tour-ticket' },
 ]
 
@@ -89,3 +89,4 @@ export default function Navbar() {
     </nav>
   )
 }
+

@@ -113,7 +113,7 @@
 .esim-country-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px 20px 120px;
+  padding: 20px 20px 180px;
 }
 .esim-back {
   background: none;
@@ -185,7 +185,7 @@
 .esim-country-name { font-size: 11px; font-weight: 600; text-align: center; color: var(--text); word-break: keep-all; }
 .esim-country-footer {
   position: fixed;
-  bottom: 0;
+  bottom: 60px;
   left: 0;
   right: 0;
   background: #fff;
@@ -215,7 +215,7 @@
 .esim-combo-page {
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px 20px 140px;
+  padding: 20px 20px 200px;
 }
 .esim-combo-title {
   font-size: 20px;
@@ -302,7 +302,7 @@
 .esim-email-input:focus { border-color: var(--primary); }
 .esim-combo-footer {
   position: fixed;
-  bottom: 0;
+  bottom: 60px;
   left: 0;
   right: 0;
   background: #fff;

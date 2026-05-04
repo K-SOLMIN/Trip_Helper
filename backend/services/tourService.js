@@ -1,3 +1,6 @@
+const { requireEnv } = require('../utils/env')
+const { createError } = require('../utils/errors')
+
 const PAID_TYPES = new Set([
   'amusement_park',
   'aquarium',
@@ -18,16 +21,6 @@ const FREE_TYPES = new Set([
   'synagogue',
   'place_of_worship',
 ]);
-
-function requireGoogleKey() {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
-  if (!key) {
-    const err = new Error('GOOGLE_MAPS_API_KEY가 설정되어 있지 않습니다.');
-    err.status = 500;
-    throw err;
-  }
-  return key;
-}
 
 function inferTourHints(place) {
   const types = place.types || [];
@@ -83,7 +76,7 @@ function normalizePlace(place) {
 }
 
 async function searchTours({ query = 'Tokyo tourist attractions', pageToken = '' }) {
-  const key = requireGoogleKey();
+  const key = requireEnv('GOOGLE_MAPS_API_KEY')
   const cleanQuery = String(query || 'Tokyo tourist attractions').trim();
   const cleanPageToken = String(pageToken || '').trim();
   const textQuery = /tour|attraction|landmark|museum|aquarium/i.test(cleanQuery)
@@ -135,13 +128,9 @@ async function searchTours({ query = 'Tokyo tourist attractions', pageToken = ''
 }
 
 async function getTourDetail(placeId) {
-  const key = requireGoogleKey();
-  const cleanPlaceId = String(placeId || '').trim();
-  if (!cleanPlaceId) {
-    const err = new Error('placeId가 필요합니다.');
-    err.status = 400;
-    throw err;
-  }
+  const key = requireEnv('GOOGLE_MAPS_API_KEY')
+  const cleanPlaceId = String(placeId || '').trim()
+  if (!cleanPlaceId) throw createError('placeId가 필요합니다.', 400)
 
   const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(cleanPlaceId)}?languageCode=ko`, {
     headers: {
@@ -176,13 +165,9 @@ async function getTourDetail(placeId) {
 }
 
 async function getTourPhotoUri(name) {
-  const key = requireGoogleKey();
-  const cleanName = String(name || '').trim();
-  if (!cleanName.startsWith('places/')) {
-    const err = new Error('사진 리소스 이름이 필요합니다.');
-    err.status = 400;
-    throw err;
-  }
+  const key = requireEnv('GOOGLE_MAPS_API_KEY')
+  const cleanName = String(name || '').trim()
+  if (!cleanName.startsWith('places/')) throw createError('사진 리소스 이름이 필요합니다.', 400)
 
   const url = `https://places.googleapis.com/v1/${encodeURI(cleanName)}/media?maxWidthPx=800&skipHttpRedirect=true&key=${encodeURIComponent(key)}`;
   const response = await fetch(url);

@@ -18,7 +18,7 @@
   flex-shrink: 0;
 }
 
-/* ?? 寃???뱀뀡 ?? */
+/* Search section */
 .ac-search-section {
   background: #fff;
   padding: 12px 14px;
@@ -159,7 +159,7 @@
 }
 .ac-search-btn:hover { background: var(--primary-hover); }
 
-/* ?? ?щ젰 ?앹뾽 ?? */
+/* Calendar popup */
 .ac-cal-overlay {
   position: fixed;
   inset: 0;
@@ -335,7 +335,7 @@
 .ac-cal-confirm:disabled { background: #d1d5db; cursor: not-allowed; }
 .ac-cal-confirm:not(:disabled):hover { background: var(--primary-hover); }
 
-/* ?? ?ы뻾吏 ?ъ쭊 移대뱶 ?? */
+/* Destination photo cards */
 .ac-dest-section {
   background: #fff;
   padding: 20px 0 20px 14px;
@@ -411,7 +411,7 @@
 .ac-dest-all-icon { font-size: 30px; }
 .ac-dest-all-text { font-size: 13px; font-weight: 700; color: var(--primary); }
 
-/* ?? 援??蹂??숈냼 ?뱀뀡 ?? */
+/* Country hotel sections */
 .ac-hotels-wrap {
   display: flex;
   flex-direction: column;
@@ -466,7 +466,7 @@
 }
 .ac-arrow-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-/* ?? ?명뀛 媛濡??ㅽ겕濡??? */
+/* Hotel horizontal scroll */
 .ac-hotel-scroll {
   display: flex;
   gap: 8px;
@@ -477,7 +477,7 @@
 }
 .ac-hotel-scroll::-webkit-scrollbar { display: none; }
 
-/* ?? ?명뀛 移대뱶 ?? */
+/* Hotel cards */
 .ac-hotel-card {
   flex-shrink: 0;
   width: 140px;
@@ -571,7 +571,7 @@
 .ac-price-amt { font-size: 14px; font-weight: 800; color: var(--primary); }
 .ac-price-unit { font-size: 11px; color: #aaa; }
 
-/* ?? 鍮??곹깭 ?? */
+/* Empty state */
 .ac-empty {
   grid-column: 1 / -1;
   display: flex;
@@ -585,7 +585,7 @@
 }
 .ac-empty-icon { font-size: 44px; }
 
-/* ?? ?ㅼ펷?덊넠 濡쒕뵫 ?? */
+/* Skeleton loading */
 @keyframes ac-shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -621,7 +621,7 @@
   white-space: nowrap;
 }
 
-/* ?? ?ы뻾吏 寃???ㅻ쾭?덉씠 (ac-ds-*) ?? */
+/* Destination search overlay (ac-ds-*) */
 .ac-ds-overlay {
   position: fixed;
   inset: 0;
@@ -748,9 +748,7 @@
 .ac-ds-result-arrow { font-size: 13px; color: #ccc; }
 .ac-ds-empty { padding: 28px 20px; color: #aaa; font-size: 14px; text-align: center; }
 
-/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧
-   AccSearchResults  (asr-*)
-?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧 */
+/* Accommodation search results (asr-*) */
 .asr-page {
   min-height: 100vh;
   background: #f7f8fa;
@@ -758,7 +756,7 @@
   padding-bottom: 80px;
 }
 
-/* 寃???붿빟 諛?*/
+/* Search summary bar */
 .asr-summary-bar {
   display: flex;
   align-items: center;
@@ -783,7 +781,7 @@
 }
 .asr-modify-btn:hover { background: #eff6ff; }
 
-/* 諛붾뵒 ?덉씠?꾩썐 */
+/* Body layout */
 .asr-body {
   display: flex;
   gap: 24px;
@@ -793,7 +791,7 @@
   align-items: flex-start;
 }
 
-/* ?? ?쇱そ ?ъ씠?쒕컮 ?? */
+/* Left sidebar */
 .asr-sidebar {
   width: 220px;
   flex-shrink: 0;
@@ -858,7 +856,7 @@
 .asr-radio-label.active { color: var(--primary, #2563eb); font-weight: 600; }
 .asr-stars-label        { color: #f59e0b; font-size: 13px; letter-spacing: 1px; }
 
-/* ?? ?ㅻⅨ履?硫붿씤 ?? */
+/* Main content */
 .asr-main { flex: 1; min-width: 0; }
 
 .asr-results-hd {
@@ -868,7 +866,7 @@
 }
 .asr-total b { color: #111; font-size: 15px; }
 
-/* ?명뀛 移대뱶 由ъ뒪??*/
+/* Hotel card list */
 .asr-list { display: flex; flex-direction: column; gap: 16px; }
 
 .asr-card {
@@ -962,7 +960,7 @@
 }
 .asr-price-sub { font-size: 12px; color: #aaa; }
 
-/* ?ㅼ펷?덊넠 */
+/* Skeleton */
 .asr-skeleton-card {
   display: flex;
   background: #fff;
@@ -987,7 +985,7 @@
   justify-content: center;
 }
 
-/* ?먮윭 / 鍮??곹깭 */
+/* Error / empty state */
 .asr-error, .asr-empty {
   text-align: center;
   padding: 60px 20px;
@@ -1005,7 +1003,7 @@
   font-size: 14px;
 }
 
-/* ?? ?숈냼 ?곸꽭 ?섏씠吏 ?? */
+/* Accommodation detail page */
 .acc-detail-page {
   min-height: 100vh;
   background: #f7f8fa;

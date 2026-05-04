@@ -19,9 +19,23 @@ const REGIONS = [
   { key: 'africa', label: '아프리카' },
 ]
 
+function toDateParam(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function getTodayDateParam() {
+  const departure = new Date()
+  departure.setHours(0, 0, 0, 0)
+  return toDateParam(departure)
+}
+
 export default function Home() {
   const navigate = useNavigate()
-  const { tripType, setTripType } = useSearch()
+  const { tripType } = useSearch()
   const [popular, setPopular] = useState([])
   const [region, setRegion] = useState('all')
 
@@ -32,11 +46,18 @@ export default function Home() {
   const filtered = region === 'all' ? popular : popular.filter((d) => d.region === region)
 
   const handlePopularClick = (dest) => {
-    navigate(
-      `/search?origin=ICN&destination=${dest.code}&destination_name=${encodeURIComponent(dest.city)}&departure_date=${
-        new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
-      }&adults=1&cabin_class=economy&trip_type=round`
-    )
+    const params = new URLSearchParams({
+      origin: 'ICN',
+      origin_name: '인천 ICN',
+      destination: dest.code,
+      destination_name: dest.city,
+      departure_date: getTodayDateParam(),
+      adults: '1',
+      cabin_class: 'economy',
+      trip_type: 'round',
+    })
+
+    navigate(`/search?${params}`)
   }
 
   // Pair popular items into rows of 2
@@ -60,7 +81,7 @@ export default function Home() {
         <div className="promo-card">
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)', marginBottom: 6, letterSpacing: 1 }}>
-              My LuckyGlide
+              My 폰가이즈
             </div>
             <div className="promo-title">내게 맞는 최저가 항공권 찾기</div>
             <div className="promo-sub">원하는 조건에 맞춰 가장 저렴한 항공권을 찾아보세요</div>

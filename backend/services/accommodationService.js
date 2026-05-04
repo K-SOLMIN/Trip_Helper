@@ -1,6 +1,6 @@
-const { BASE_URL, getHeaders } = require('../config/hotelbeds');
+﻿const { BASE_URL, getHeaders } = require('../config/hotelbeds');
 const { genStayBookingRef, sendStayBookingEmail } = require('./emailService');
-const COORDS = require('../data/hotelCoords');
+const { getHotelCoords } = require('../data/hotelCoords');
 const { pickImage } = require('../data/hotelImages');
 
 function getDefaultDates() {
@@ -12,7 +12,7 @@ function getDefaultDates() {
   return { checkIn: fmt(ci), checkOut: fmt(co) };
 }
 
-/* Content API에서 호텔 코드 목록의 이미지 URL을 가져옴 */
+/* Content API에서 호텔 코드 목록의 이미지 URL을 가져옵니다. */
 async function fetchHotelImages(codes) {
   if (!codes.length) return {};
   try {
@@ -35,7 +35,7 @@ async function fetchHotelImages(codes) {
 
     for (const h of hotels) {
       const imgs = h.images || [];
-      /* GEN(외관) 우선, 없으면 첫 번째 이미지 */
+      /* 일반 이미지 우선, 없으면 객실 이미지 또는 첫 번째 이미지를 사용합니다. */
       const best =
         imgs.find(i => i.imageTypeCode === 'GEN') ||
         imgs.find(i => i.imageTypeCode === 'HAB') ||
@@ -50,9 +50,9 @@ async function fetchHotelImages(codes) {
   }
 }
 
-async function searchStays({ checkIn, checkOut, guests = 2, country }) {
-  const coords = COORDS[country];
-  if (!coords) throw new Error(`지원하지 않는 여행지: ${country}`);
+async function searchStays({ checkIn, checkOut, guests = 2, country, countryCode }) {
+  const coords = getHotelCoords(countryCode || country);
+  if (!coords) throw new Error(`지원하지 않는 여행지입니다: ${countryCode || country}`);
 
   const defaults = getDefaultDates();
   const ci = checkIn || defaults.checkIn;
@@ -86,7 +86,7 @@ async function searchStays({ checkIn, checkOut, guests = 2, country }) {
 
   if (!hotels.length) return [];
 
-  /* 실제 호텔 이미지 가져오기 */
+  /* 실제 호텔 이미지를 가져옵니다. */
   const codes = hotels.map(h => String(h.code));
   const imageMap = await fetchHotelImages(codes);
 
@@ -102,7 +102,7 @@ async function searchStays({ checkIn, checkOut, guests = 2, country }) {
   }));
 }
 
-function buildAvailabilityBody({ checkIn, checkOut, guests = 2, country, hotelCode }) {
+function buildAvailabilityBody({ checkIn, checkOut, guests = 2, country, countryCode, hotelCode }) {
   const defaults = getDefaultDates();
   const ci = checkIn || defaults.checkIn;
   const co = checkOut || defaults.checkOut;
@@ -118,8 +118,8 @@ function buildAvailabilityBody({ checkIn, checkOut, guests = 2, country, hotelCo
     return body;
   }
 
-  const coords = COORDS[country];
-  if (!coords) throw new Error(`지원하지 않는 여행지: ${country}`);
+  const coords = getHotelCoords(countryCode || country);
+  if (!coords) throw new Error(`지원하지 않는 여행지입니다: ${countryCode || country}`);
   body.geolocation = {
     latitude: coords.latitude,
     longitude: coords.longitude,
@@ -129,11 +129,11 @@ function buildAvailabilityBody({ checkIn, checkOut, guests = 2, country, hotelCo
   return body;
 }
 
-async function fetchAvailableHotels({ checkIn, checkOut, guests = 2, country, hotelCode }) {
+async function fetchAvailableHotels({ checkIn, checkOut, guests = 2, country, countryCode, hotelCode }) {
   const res = await fetch(`${BASE_URL}/hotel-api/1.0/hotels`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify(buildAvailabilityBody({ checkIn, checkOut, guests, country, hotelCode })),
+    body: JSON.stringify(buildAvailabilityBody({ checkIn, checkOut, guests, country, countryCode, hotelCode })),
   });
 
   if (!res.ok) {
@@ -145,14 +145,14 @@ async function fetchAvailableHotels({ checkIn, checkOut, guests = 2, country, ho
   return json.hotels?.hotels || [];
 }
 
-async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1, country, guestName, email, hotelName, location, image }) {
+async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1, country, countryCode, guestName, email, hotelName, location, image }) {
   if (!hotelCode || !checkIn || !checkOut || !email || !guestName) {
     const err = new Error('숙소 예약에 필요한 값이 누락되었습니다.');
     err.status = 400;
     throw err;
   }
 
-  const hotels = await fetchAvailableHotels({ checkIn, checkOut, guests, country, hotelCode });
+  const hotels = await fetchAvailableHotels({ checkIn, checkOut, guests, country, countryCode, hotelCode });
   const availableHotel = hotels.find(h => String(h.code) === String(hotelCode));
 
   if (!availableHotel) {

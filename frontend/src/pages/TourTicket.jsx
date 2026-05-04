@@ -1,111 +1,34 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/layout/BottomNav'
 import Navbar from '../components/layout/Navbar'
 import { searchTours } from '../api/tourApi'
+import {
+  DEFAULT_TOUR_QUERY, SEARCH_PLACEHOLDER,
+  POPULAR_DESTS, HEROES, FALLBACK_IMAGES,
+  SORT_OPTIONS, FILTER_OPTIONS,
+} from '../data/tourData'
+import { getStored, storeUnique, getSearchLabel } from '../utils/tourUtils'
 import '../styles/tour.css'
-
-const POPULAR_DESTS = [
-  { label: '오사카', query: 'Osaka tourist attractions', icon: '🏯' },
-  { label: '후쿠오카', query: 'Fukuoka tourist attractions', icon: '⛩️' },
-  { label: '파리', query: 'Paris tourist attractions', icon: '🗼' },
-  { label: '로마', query: 'Rome tourist attractions', icon: '🏛️' },
-  { label: '싱가포르', query: 'Singapore attractions', icon: '🌆' },
-  { label: '하와이', query: 'Hawaii attractions', icon: '🌴' },
-  { label: '뉴욕', query: 'New York tourist attractions', icon: '🗽' },
-]
-
-const HEROES = [
-  {
-    label: '하와이',
-    title: '하와이 인기투어',
-    sub: '해변, 전망대, 가족 여행지까지',
-    query: 'Hawaii attractions',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=80',
-  },
-  {
-    label: '파리',
-    title: '파리 랜드마크',
-    sub: '예약 권장 명소를 한 번에',
-    query: 'Paris museums landmarks',
-    image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=900&q=80',
-  },
-  {
-    label: '오사카',
-    title: '오사카 BEST',
-    sub: '테마파크와 야경 명소',
-    query: 'Osaka tourist attractions',
-    image: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?w=900&q=80',
-  },
-]
-
-const FALLBACK_IMAGES = [
-  'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=700&q=80',
-  'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=700&q=80',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=700&q=80',
-]
-
-const DEFAULT_TOUR_QUERY = 'Osaka tourist attractions'
-const SEARCH_PLACEHOLDER = '원하는 나라나 명소를 입력해주세요!!'
-
-const SEARCH_LABELS = {
-  'Osaka tourist attractions': '오사카',
-  'Fukuoka tourist attractions': '후쿠오카',
-  'Paris tourist attractions': '파리',
-  'Paris museums landmarks': '파리',
-  'Rome tourist attractions': '로마',
-  'Singapore attractions': '싱가포르',
-  'Hawaii attractions': '하와이',
-  'New York tourist attractions': '뉴욕',
-}
-
-const SORT_OPTIONS = [
-  { value: 'default', label: '기본순' },
-  { value: 'rating', label: '평점순' },
-  { value: 'reviews', label: '리뷰 많은순' },
-]
-
-const FILTER_OPTIONS = [
-  { value: 'reservation', label: '예약 권장' },
-  { value: 'paid', label: '입장료 있음' },
-  { value: 'free', label: '무료 가능' },
-  { value: 'open', label: '현재 영업중' },
-  { value: 'rated', label: '평점 있음' },
-]
-
-function getStored(key) {
-  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
-}
-
-function storeUnique(key, item, getId, limit = 6) {
-  const current = getStored(key)
-  const next = [item, ...current.filter(v => getId(v) !== getId(item))].slice(0, limit)
-  localStorage.setItem(key, JSON.stringify(next))
-  return next
-}
-
-function getSearchLabel(value) {
-  return SEARCH_LABELS[value] || value
-}
 
 export default function TourTicket() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState(DEFAULT_TOUR_QUERY)
-  const [input, setInput] = useState('')
-  const [displayQuery, setDisplayQuery] = useState('')
-  const [hasSearched, setHasSearched] = useState(false)
-  const [tours, setTours] = useState([])
+  const [query,          setQuery]          = useState(DEFAULT_TOUR_QUERY)
+  const [input,          setInput]          = useState('')
+  const [displayQuery,   setDisplayQuery]   = useState('')
+  const [hasSearched,    setHasSearched]    = useState(false)
+  const [tours,          setTours]          = useState([])
   const [recentSearches, setRecentSearches] = useState(() => getStored('tour_recent_searches'))
-  const [recentTours, setRecentTours] = useState(() => getStored('tour_recent_viewed'))
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [sortBy, setSortBy] = useState('default')
-  const [filters, setFilters] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [nextPageToken, setNextPageToken] = useState('')
-  const [error, setError] = useState('')
-  const [loadMoreError, setLoadMoreError] = useState('')
-  const loadMoreRef = useRef(null)
+  const [recentTours,    setRecentTours]    = useState(() => getStored('tour_recent_viewed'))
+  const [isSearchOpen,   setIsSearchOpen]   = useState(false)
+  const [sortBy,         setSortBy]         = useState('default')
+  const [filters,        setFilters]        = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [loadingMore,    setLoadingMore]    = useState(false)
+  const [nextPageToken,  setNextPageToken]  = useState('')
+  const [error,          setError]          = useState('')
+  const [loadMoreError,  setLoadMoreError]  = useState('')
+  const loadMoreRef   = useRef(null)
   const searchInputRef = useRef(null)
 
   useEffect(() => {
@@ -129,7 +52,6 @@ export default function TourTicket() {
 
   const loadMoreTours = useCallback(() => {
     if (!nextPageToken || loading || loadingMore) return
-
     setLoadingMore(true)
     setLoadMoreError('')
     searchTours(query, nextPageToken)
@@ -151,14 +73,10 @@ export default function TourTicket() {
   useEffect(() => {
     const target = loadMoreRef.current
     if (!target || !nextPageToken || loading || error) return undefined
-
     const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0]?.isIntersecting) loadMoreTours()
-      },
+      entries => { if (entries[0]?.isIntersecting) loadMoreTours() },
       { rootMargin: '260px 0px' },
     )
-
     observer.observe(target)
     return () => observer.disconnect()
   }, [error, loadMoreTours, loading, nextPageToken])
@@ -166,11 +84,7 @@ export default function TourTicket() {
   useEffect(() => {
     if (!isSearchOpen) return undefined
     searchInputRef.current?.focus()
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setIsSearchOpen(false)
-    }
-
+    const handleKeyDown = (event) => { if (event.key === 'Escape') setIsSearchOpen(false) }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isSearchOpen])
@@ -206,17 +120,17 @@ export default function TourTicket() {
   const visibleTours = useMemo(() => {
     const filtered = tours.filter(tour => {
       if (filters.includes('reservation') && !tour.reservationLevel?.includes('권장')) return false
-      if (filters.includes('paid') && !tour.costLevel?.includes('입장료')) return false
-      if (filters.includes('free') && !tour.costLevel?.includes('무료')) return false
-      if (filters.includes('open') && tour.openNow !== true) return false
-      if (filters.includes('rated') && !tour.rating) return false
+      if (filters.includes('paid')        && !tour.costLevel?.includes('입장료'))      return false
+      if (filters.includes('free')        && !tour.costLevel?.includes('무료'))        return false
+      if (filters.includes('open')        && tour.openNow !== true)                    return false
+      if (filters.includes('rated')       && !tour.rating)                             return false
       return true
     })
-
-    if (sortBy === 'rating') return [...filtered].sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+    if (sortBy === 'rating')  return [...filtered].sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
     if (sortBy === 'reviews') return [...filtered].sort((a, b) => Number(b.reviewCount || 0) - Number(a.reviewCount || 0))
     return filtered
   }, [filters, sortBy, tours])
+
   const queryLabel = hasSearched ? displayQuery || getSearchLabel(query) : SEARCH_PLACEHOLDER
 
   return (
@@ -258,24 +172,18 @@ export default function TourTicket() {
 
               <div className="tour-modal-body">
                 <div className="tour-modal-recent">
-                  <div className="tour-modal-title">
-                    <strong>최근검색어</strong>
-                  </div>
+                  <div className="tour-modal-title"><strong>최근검색어</strong></div>
                   {recentSearches.length ? recentSearches.map((item, i) => (
                     <div key={`${item}-modal-${i}`} className="tour-recent-search-row">
                       <button type="button" onClick={() => handleSearch(item)}>{getSearchLabel(item)}</button>
                       <button type="button" aria-label={`${getSearchLabel(item)} 삭제`} onClick={() => removeRecentSearch(item)}>×</button>
                     </div>
-                  )) : (
-                    <p>최근검색어가 없습니다.</p>
-                  )}
+                  )) : <p>최근검색어가 없습니다.</p>}
                 </div>
 
                 <div className="tour-modal-viewed">
                   <div className="tour-modal-banner">예약 권장 명소를 빠르게 찾아보세요</div>
-                  <div className="tour-modal-title">
-                    <strong>최근 본 투어</strong>
-                  </div>
+                  <div className="tour-modal-title"><strong>최근 본 투어</strong></div>
                   {recentTours.length ? (
                     <div className="tour-modal-card-list">
                       {recentTours.map(tour => (
@@ -286,9 +194,7 @@ export default function TourTicket() {
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <p>최근 본 투어가 없습니다.</p>
-                  )}
+                  ) : <p>최근 본 투어가 없습니다.</p>}
                 </div>
               </div>
             </div>
@@ -340,9 +246,7 @@ export default function TourTicket() {
             </section>
 
             <section className="tour-recent-viewed">
-              <div className="tour-section-head">
-                <h2>최근 본 투어</h2>
-              </div>
+              <div className="tour-section-head"><h2>최근 본 투어</h2></div>
               {recentTours.length ? (
                 <div className="tour-mini-list">
                   {recentTours.map(tour => (

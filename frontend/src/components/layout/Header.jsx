@@ -9,7 +9,6 @@ export default function Header({ tripType, onTripTypeChange, navLinks = [] }) {
     <header className="header">
       <div className="header-inner">
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          {/* 메인페이지와 동일한 로고 */}
           <button
             onClick={() => navigate('/home')}
             className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
@@ -20,7 +19,6 @@ export default function Header({ tripType, onTripTypeChange, navLinks = [] }) {
             <span className="text-xl font-bold text-gray-900 tracking-tight">폰가이즈</span>
           </button>
 
-          {/* 페이지별 네비 링크 */}
           {navLinks.map(({ label, to }) => (
             <Link
               key={to}
@@ -34,13 +32,16 @@ export default function Header({ tripType, onTripTypeChange, navLinks = [] }) {
 
           {onTripTypeChange && (
             <div className="trip-tabs">
-              {['round', 'one_way'].map((type, i) => (
+              {[
+                { value: 'round', label: '왕복' },
+                { value: 'one_way', label: '편도' },
+              ].map(({ value, label }) => (
                 <button
-                  key={type}
-                  className={`trip-tab${tripType === type ? ' active' : ''}`}
-                  onClick={() => onTripTypeChange(type)}
+                  key={value}
+                  className={`trip-tab${tripType === value ? ' active' : ''}`}
+                  onClick={() => onTripTypeChange(value)}
                 >
-                  {i === 0 ? '왕복' : '편도'}
+                  {label}
                 </button>
               ))}
               <button className="trip-tab">다구간</button>
@@ -49,7 +50,7 @@ export default function Header({ tripType, onTripTypeChange, navLinks = [] }) {
         </div>
 
         <div className="header-right">
-          <button className="btn-outline">내 예약내역</button>
+          <button className="btn-outline">예약내역</button>
         </div>
       </div>
     </header>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import { SearchProvider } from './store/SearchContext'
 import MainPage from './pages/MainPage'
 import AiTravelPage from './pages/AiTravelPage'
@@ -9,12 +9,18 @@ import BookingForm from './pages/BookingForm'
 import Confirmation from './pages/Confirmation'
 import ESimPage from './pages/ESimPage'
 import LoginPage from './pages/LoginPage'
-import Accomodation from './pages/Accomodation'
+import Accommodation from './pages/Accommodation'
 import AccSearchResults from './pages/AccSearchResults'
-import AccomodationDetail from './pages/AccomodationDetail'
-import AccomodationConfirmation from './pages/AccomodationConfirmation'
+import AccommodationDetail from './pages/AccommodationDetail'
+import AccommodationConfirmation from './pages/AccommodationConfirmation'
 import TourTicket from './pages/TourTicket'
 import TourTicketDetail from './pages/TourTicketDetail'
+
+function LegacyAccommodationRedirect() {
+  const location = useLocation()
+  const path = location.pathname.replace('/accomodation', '/accommodation')
+  return <Navigate to={`${path}${location.search}`} replace />
+}
 
 export default function App() {
   return (
@@ -31,10 +37,11 @@ export default function App() {
           <Route path="/confirmation/:orderId" element={<Confirmation />} />
           <Route path="/esim" element={<ESimPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/accomodation" element={<Accomodation />} />
-          <Route path="/accomodation/results" element={<AccSearchResults />} />
-          <Route path="/accomodation/confirmation/:bookingRef" element={<AccomodationConfirmation />} />
-          <Route path="/accomodation/:hotelId" element={<AccomodationDetail />} />
+          <Route path="/accommodation" element={<Accommodation />} />
+          <Route path="/accommodation/results" element={<AccSearchResults />} />
+          <Route path="/accommodation/confirmation/:bookingRef" element={<AccommodationConfirmation />} />
+          <Route path="/accommodation/:hotelId" element={<AccommodationDetail />} />
+          <Route path="/accomodation/*" element={<LegacyAccommodationRedirect />} />
           <Route path="/tour-ticket" element={<TourTicket />} />
           <Route path="/tour-ticket/:placeId" element={<TourTicketDetail />} />
         </Routes>

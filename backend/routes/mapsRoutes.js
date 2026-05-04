@@ -1,6 +1,7 @@
-const { Router } = require('express');
+const { Router } = require('express')
+const { getEmbedUrl } = require('../controllers/mapsController')
 
-const router = Router();
+const router = Router()
 
 /**
  * @swagger
@@ -28,34 +29,6 @@ const router = Router();
  *       500:
  *         $ref: '#/components/responses/Error'
  */
-router.get('/maps/embed-url', (req, res, next) => {
-  try {
-    const key = process.env.GOOGLE_MAPS_API_KEY;
-    if (!key) {
-      const err = new Error('GOOGLE_MAPS_API_KEY가 설정되어 있지 않습니다.');
-      err.status = 500;
-      throw err;
-    }
+router.get('/maps/embed-url', getEmbedUrl)
 
-    const lat = req.query.lat;
-    const lng = req.query.lng;
-    const query = String(req.query.query || '').trim();
-    const target = lat && lng ? `${lat},${lng}` : query;
-
-    if (!target) {
-      const err = new Error('지도 검색어 또는 좌표가 필요합니다.');
-      err.status = 400;
-      throw err;
-    }
-
-    const encodedTarget = encodeURIComponent(target);
-    res.json({
-      embedUrl: `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodedTarget}&zoom=15`,
-      externalUrl: `https://www.google.com/maps/search/?api=1&query=${encodedTarget}`,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-module.exports = router;
+module.exports = router

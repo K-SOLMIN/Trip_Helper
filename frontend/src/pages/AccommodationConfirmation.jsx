@@ -20,7 +20,7 @@ function Row({ label, value, strong }) {
   )
 }
 
-export default function AccomodationConfirmation() {
+export default function AccommodationConfirmation() {
   const navigate = useNavigate()
   const location = useLocation()
   const { bookingRef } = useParams()
@@ -40,7 +40,7 @@ export default function AccomodationConfirmation() {
         <Navbar />
         <div className="acc-confirm-empty">
           <strong>예약 정보를 찾을 수 없습니다.</strong>
-          <button onClick={() => navigate('/accomodation')}>숙소 검색으로 돌아가기</button>
+          <button onClick={() => navigate('/accommodation')}>숙소 검색으로 돌아가기</button>
         </div>
       </div>
     )
@@ -84,3 +84,5 @@ export default function AccomodationConfirmation() {
     </div>
   )
 }
+
+

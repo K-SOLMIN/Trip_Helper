@@ -122,15 +122,17 @@ async function getStayDetail(hotelId) {
 
   const hotel = detailJson.data || {}
 
-  const images = (photosJson.data || [])
-    .flatMap(cat => cat.photos || [])
+  const toArr = (val) => Array.isArray(val) ? val : Object.values(val || {})
+
+  const images = toArr(photosJson.data)
+    .flatMap(cat => Array.isArray(cat) ? cat : (cat.photos || []))
     .map(p => ({ url: p.url_original || p.url_max || p.url_square60 }))
     .filter(p => p.url)
     .slice(0, 12)
 
-  const facilities = (facilitiesJson.data || [])
-    .flatMap(cat => cat.facilities || [])
-    .map(f => f.name)
+  const facilities = toArr(facilitiesJson.data)
+    .flatMap(cat => Array.isArray(cat) ? cat : (cat.facilities || []))
+    .map(f => f.name || (typeof f === 'string' ? f : ''))
     .filter(Boolean)
     .slice(0, 18)
 

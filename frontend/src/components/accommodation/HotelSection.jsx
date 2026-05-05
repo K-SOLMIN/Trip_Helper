@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { DESTINATIONS } from '../../data/mockHotels'
 import { formatKrwPrice } from '../../utils/currency'
 
-export default function HotelSection({ country, hotels, loading, liked, onLike }) {
+export default function HotelSection({ country, hotels, loading, liked, onLike, onHotelClick }) {
   const scrollRef = useRef(null)
   const dest = DESTINATIONS.find(d => d.key === country)
 
@@ -41,7 +41,7 @@ export default function HotelSection({ country, hotels, loading, liked, onLike }
           <p className="ac-no-results">검색 결과가 없습니다.</p>
         ) : (
           hotels.map(hotel => (
-            <div key={hotel.id} className="ac-hotel-card">
+            <div key={hotel.id} className="ac-hotel-card" style={{ cursor: 'pointer' }} onClick={() => onHotelClick?.(hotel, country)}>
               <div className="ac-hotel-img-wrap">
                 {hotel.image
                   ? <img src={hotel.image} alt={hotel.name} className="ac-hotel-img" />

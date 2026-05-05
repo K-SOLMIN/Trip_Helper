@@ -207,7 +207,7 @@ export default function TourTicketDetail() {
                   {reviews.map((review, i) => (
                     <article key={`${review.authorName}-${review.publishTime}-${i}`} className="tour-review-item">
                       <div>
-                        {review.authorPhotoUri && <img src={review.authorPhotoUri} alt="" />}
+                        {review.authorPhotoUri && <img src={review.authorPhotoUri} alt="" referrerPolicy="no-referrer" />}
                         <div>
                           {review.authorUri ? (
                             <a href={review.authorUri} target="_blank" rel="noreferrer">{review.authorName}</a>

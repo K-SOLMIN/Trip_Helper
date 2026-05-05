@@ -1,12 +1,28 @@
-const { BASE_URL, getHeaders } = require('../config/hotelbeds')
+const { BASE_URL, getHeaders } = require('../config/rapidapi')
 const { genStayBookingRef, sendStayBookingEmail } = require('./emailService')
-const { getHotelCoords } = require('../data/hotelCoords')
-const {
-  buildHotelImages,
-  fetchHotelImages,
-  getFallbackHotelImage,
-} = require('./hotelImageService')
+const { normalizeCountryCode } = require('../data/hotelCoords')
 const { createError } = require('../utils/errors')
+
+const COUNTRY_CITY = {
+  JP: 'Tokyo',          TH: 'Bangkok',        FR: 'Paris',         ID: 'Bali',
+  SG: 'Singapore',      US: 'New York',        GB: 'London',        CN: 'Beijing',
+  HK: 'Hong Kong',      TW: 'Taipei',          VN: 'Hanoi',         MY: 'Kuala Lumpur',
+  PH: 'Manila',         IN: 'Mumbai',          KH: 'Siem Reap',     NP: 'Kathmandu',
+  LK: 'Colombo',        MM: 'Yangon',          LA: 'Vientiane',     MN: 'Ulaanbaatar',
+  AE: 'Dubai',          QA: 'Doha',            TR: 'Istanbul',      IL: 'Tel Aviv',
+  JO: 'Amman',          IT: 'Rome',            ES: 'Barcelona',     DE: 'Berlin',
+  NL: 'Amsterdam',      CH: 'Zurich',          AT: 'Vienna',        PT: 'Lisbon',
+  GR: 'Athens',         CZ: 'Prague',          HU: 'Budapest',      PL: 'Warsaw',
+  HR: 'Dubrovnik',      NO: 'Oslo',            SE: 'Stockholm',     DK: 'Copenhagen',
+  FI: 'Helsinki',       IS: 'Reykjavik',       IE: 'Dublin',        BE: 'Brussels',
+  RU: 'Moscow',         CA: 'Vancouver',       MX: 'Cancun',        CU: 'Havana',
+  PE: 'Lima',           BR: 'Rio de Janeiro',  AR: 'Buenos Aires',  AU: 'Sydney',
+  NZ: 'Auckland',       EG: 'Cairo',           MA: 'Marrakech',     ZA: 'Cape Town',
+  KE: 'Nairobi',        TZ: 'Zanzibar',
+}
+
+const HOTEL_DOMAIN = 'KR'
+const HOTEL_LOCALE = 'ko_KR'
 
 function getDefaultDates() {
   const ci = new Date()
@@ -17,135 +33,277 @@ function getDefaultDates() {
   return { checkIn: fmt(ci), checkOut: fmt(co) }
 }
 
+const destIdCache = {}
+
+async function searchDestId(cityName) {
+  if (destIdCache[cityName]) return destIdCache[cityName]
+  const params = new URLSearchParams({
+    query: cityName,
+    locale: HOTEL_LOCALE,
+    domain: HOTEL_DOMAIN,
+  })
+  const url = `${BASE_URL}/v2/regions?${params}`
+  const res = await fetch(url, { method: 'GET', headers: getHeaders() })
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`[Hotels.com] locations ${res.status}:`, body)
+    throw new Error(`Hotels.com location search ${res.status}`)
+  }
+  const json = await res.json()
+  const results = json.data || json.results || json.locations || []
+  const dest = results.find(r => r.type === 'CITY') || results[0]
+  if (!dest) throw createError(`검색 가능한 여행지가 없습니다: ${cityName}`, 400)
+  const result = {
+    destId: String(dest.gaiaId || dest.dest_id || dest.destId || dest.essId?.sourceId || ''),
+    name: dest.regionNames?.primaryDisplayName || dest.regionNames?.shortName || cityName,
+  }
+  if (!result.destId) throw createError(`검색 가능한 여행지가 없습니다: ${cityName}`, 400)
+  destIdCache[cityName] = result
+  return result
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    if (Array.isArray(value) && value[0]) return String(value[0]).trim()
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (value?.text) return String(value.text).trim()
+    if (value?.value) return String(value.value).trim()
+  }
+  return ''
+}
+
+function firstNumber(...values) {
+  for (const value of values) {
+    const num = Number(String(value ?? '').replace(/[^\d.]/g, ''))
+    if (Number.isFinite(num) && num > 0) return num
+  }
+  return 0
+}
+
+function pickImage(value) {
+  const candidates = [
+    value?.mediaSection?.media?.[0]?.url,
+    value?.propertyImage?.image?.url,
+    value?.propertyImage?.url,
+    value?.image?.url,
+    value?.image?.source,
+    value?.image?.urlTemplate,
+    value?.media?.url,
+    value?.media?.url,
+    value?.cardLink?.resource?.value,
+    value?.propertyImage?.fallbackImage?.url,
+    value?.propertyGallery?.images?.[0]?.image?.url,
+    value?.images?.[0]?.url,
+  ]
+  return firstText(...candidates)
+}
+
+function extractRating(value) {
+  return firstNumber(
+    value?.star,
+    value?.starRating,
+    value?.propertyClass,
+    value?.guestRating?.rating,
+    value?.reviews?.score,
+    value?.reviews?.score?.value,
+    value?.guestReviews?.rating,
+    value?.reviewInfo?.summary?.overallScoreWithDescriptionA11y?.value,
+  )
+}
+
+function normalizeHotelCard(card, cityName) {
+  const leadPrice = card.price?.priceSummary?.displayPrices?.find(item => item.role === 'LEAD')
+  const id = firstText(
+    card.hotelId,
+    card.hotel_id,
+    card.id,
+    card.propertyId,
+    card.property_id,
+    card.property?.id,
+    card.hotel?.id,
+    card.cardLink?.resource?.value?.match(/ho(\d+)/)?.[1],
+  )
+  const name = firstText(
+    card.name,
+    card.title,
+    card.property?.name,
+    card.hotel?.name,
+    card.nameSection?.heading,
+    card.headingSection?.heading,
+    card.propertyName,
+    card.summary?.name,
+  )
+  if (!id || !name) return null
+
+  const price = firstNumber(
+    card.price?.priceSummary?.definition?.displayPrice,
+    leadPrice?.price?.formatted,
+    card.price?.lead?.amount,
+    card.price?.lead?.formatted?.replace(/[^\d.]/g, ''),
+    card.price?.displayPrice?.amount,
+    card.price?.price?.amount,
+    card.price?.amount,
+    card.price?.current,
+    card.priceInfo?.price?.amount,
+    card.priceInfo?.displayPrice?.amount,
+    card.price?.displayMessages?.[0]?.lineItems?.[0]?.price?.formatted?.replace(/[^\d.]/g, ''),
+    card.price?.options?.[0]?.formattedDisplayPrice?.replace(/[^\d.]/g, ''),
+  )
+
+  return {
+    id,
+    name,
+    location: firstText(
+      card.messages?.[0],
+      card.neighborhood?.name,
+      card.location?.text,
+      card.location?.address?.city,
+      card.destinationInfo?.distanceFromDestination?.unit,
+      card.destinationInfo?.distanceFromDestination?.value,
+      cityName,
+    ),
+    rating: extractRating(card) || null,
+    price,
+    currency: 'KRW',
+    image: pickImage(card),
+    amenities: Array.isArray(card.short_amenities) ? card.short_amenities : [],
+    reviewText: firstText(card.guestRating?.phrases, card.guestRating?.ratingText),
+    tag: null,
+  }
+}
+
 async function searchStays({ checkIn, checkOut, guests = 2, country, countryCode }) {
-  const coords = getHotelCoords(countryCode || country)
-  if (!coords) throw createError(`지원하지 않는 여행지입니다: ${countryCode || country}`, 400)
+  const code = normalizeCountryCode(countryCode || country)
+  if (!code) throw createError(`지원하지 않는 여행지입니다: ${countryCode || country}`, 400)
+
+  const cityName = COUNTRY_CITY[code]
+  if (!cityName) throw createError(`지원하지 않는 여행지입니다: ${code}`, 400)
 
   const defaults = getDefaultDates()
   const ci = checkIn || defaults.checkIn
   const co = checkOut || defaults.checkOut
 
-  const body = JSON.stringify({
-    stay: { checkIn: ci, checkOut: co },
-    occupancies: [{ rooms: 1, adults: Number(guests), children: 0 }],
-    geolocation: {
-      latitude:  coords.latitude,
-      longitude: coords.longitude,
-      radius:    coords.radius,
-      unit:      'km',
-    },
-    filter: { maxHotels: 20 },
+  const { destId } = await searchDestId(cityName)
+
+  const params = new URLSearchParams({
+    domain:        HOTEL_DOMAIN,
+    locale:        HOTEL_LOCALE,
+    region_id:     destId,
+    checkin_date:  ci,
+    checkout_date: co,
+    adults_number: String(guests),
+    children_ages: '0',
+    sort_order:    'RECOMMENDED',
+    page_number:   '1',
   })
 
-  const res = await fetch(`${BASE_URL}/hotel-api/1.0/hotels`, {
-    method:  'POST',
+  const res = await fetch(`${BASE_URL}/v3/hotels/search?${params}`, {
+    method: 'GET',
     headers: getHeaders(),
-    body,
   })
 
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Hotelbeds ${res.status}: ${text}`)
+    throw new Error(`Hotels.com search ${res.status}: ${text}`)
   }
 
   const json = await res.json()
-  const hotels = (json.hotels?.hotels || []).slice(0, 20)
-  if (!hotels.length) return []
+  const listings = [
+    json.data?.hotels,
+    json.data?.properties,
+    json.data?.propertySearchListings,
+    json.hotels,
+    json.properties,
+    json.propertySearchListings,
+    json.results,
+  ].find(Array.isArray) || []
 
-  const codes = hotels.map(h => String(h.code))
-  const imageMap = await fetchHotelImages(codes)
-
-  return hotels.map((hotel) => ({
-    id:       String(hotel.code),
-    name:     hotel.name,
-    location: [hotel.zoneName, hotel.destinationName].filter(Boolean).join(' · '),
-    rating:   hotel.categoryCode ? parseInt(hotel.categoryCode) : null,
-    price:    parseFloat(hotel.minRate || 0),
-    currency: hotel.currency || 'USD',
-    image:    imageMap[String(hotel.code)] || getFallbackHotelImage(hotel.code),
-    tag:      null,
-  }))
+  return listings
+    .map(card => normalizeHotelCard(card, cityName))
+    .filter(Boolean)
+    .slice(0, 20)
 }
 
-function buildAvailabilityBody({ checkIn, checkOut, guests = 2, country, countryCode, hotelCode }) {
-  const defaults = getDefaultDates()
-  const ci = checkIn || defaults.checkIn
-  const co = checkOut || defaults.checkOut
-  const body = {
-    stay: { checkIn: ci, checkOut: co },
-    occupancies: [{ rooms: 1, adults: Number(guests), children: 0 }],
-    filter: { maxHotels: 20 },
-  }
+async function getStayDetail(hotelId) {
+  const id = String(hotelId || '').trim()
+  if (!id) throw createError('호텔 ID가 필요합니다.', 400)
 
-  if (hotelCode) {
-    body.hotels = { hotel: [Number(hotelCode)] }
-    body.filter.maxHotels = 1
-    return body
-  }
-
-  const coords = getHotelCoords(countryCode || country)
-  if (!coords) throw createError(`지원하지 않는 여행지입니다: ${countryCode || country}`, 400)
-  body.geolocation = {
-    latitude:  coords.latitude,
-    longitude: coords.longitude,
-    radius:    coords.radius,
-    unit:      'km',
-  }
-  return body
-}
-
-async function fetchAvailableHotels({ checkIn, checkOut, guests = 2, country, countryCode, hotelCode }) {
-  const res = await fetch(`${BASE_URL}/hotel-api/1.0/hotels`, {
-    method:  'POST',
-    headers: getHeaders(),
-    body:    JSON.stringify(buildAvailabilityBody({ checkIn, checkOut, guests, country, countryCode, hotelCode })),
+  const params = new URLSearchParams({
+    domain:   HOTEL_DOMAIN,
+    locale:   HOTEL_LOCALE,
+    hotel_id: id,
   })
 
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Hotelbeds ${res.status}: ${text}`)
+  const detailRes = await fetch(`${BASE_URL}/v2/hotels/details?${params}`, { method: 'GET', headers: getHeaders() })
+  if (!detailRes.ok) {
+    const text = await detailRes.text()
+    throw new Error(`Hotels.com details ${detailRes.status}: ${text}`)
   }
 
-  const json = await res.json()
-  return json.hotels?.hotels || []
+  const detailJson = await detailRes.json()
+  const hotel = detailJson.data || detailJson.summary || detailJson
+  const address = hotel.location?.address || hotel.address || {}
+
+  const images = (hotel.propertyGallery?.images || hotel.images || [])
+    .map(p => ({ url: p.image?.url || p.url }))
+    .filter(p => p.url)
+    .slice(0, 12)
+
+  const facilities = [
+    ...(hotel.amenities?.topAmenities?.items || []),
+    ...(hotel.amenities?.amenities || []),
+  ]
+    .map(f => f.text || f.name || (typeof f === 'string' ? f : ''))
+    .filter(Boolean)
+    .slice(0, 18)
+
+  return {
+    id:          id,
+    name:        firstText(hotel.name, hotel.summary?.name),
+    description: firstText(hotel.tagline, hotel.description, hotel.aboutThisProperty?.sections?.[0]?.bodySubSections?.[0]?.elements?.[0]?.items?.[0]?.content?.text),
+    address:     firstText(address.addressLine, address.fullAddress, hotel.address),
+    city:        firstText(address.city, hotel.location?.city),
+    destination: firstText(address.countryName, hotel.location?.countryName),
+    zone:        firstText(address.neighborhood, address.city, hotel.location?.city),
+    rating:      firstNumber(hotel.starRating, hotel.propertyRating?.rating) || null,
+    category:    firstText(hotel.propertyType, hotel.category),
+    coordinates: (hotel.location?.coordinates?.latitude && hotel.location?.coordinates?.longitude)
+      ? { latitude: hotel.location.coordinates.latitude, longitude: hotel.location.coordinates.longitude }
+      : null,
+    phones:      hotel.phone ? [hotel.phone] : [],
+    emails:      [],
+    images,
+    facilities,
+  }
 }
 
-async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1, country, countryCode, guestName, email, hotelName, location, image }) {
+async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1, guestName, email, hotelName, location, image }) {
   if (!hotelCode || !checkIn || !checkOut || !email || !guestName) {
     throw createError('숙소 예약에 필요한 값이 누락되었습니다.', 400)
   }
 
-  const hotels = await fetchAvailableHotels({ checkIn, checkOut, guests, country, countryCode, hotelCode })
-  const availableHotel = hotels.find(h => String(h.code) === String(hotelCode))
-
-  if (!availableHotel) throw createError('선택한 일정에는 예약 가능한 객실이 없습니다.', 409)
-
   const nights = Math.max(1, Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000))
   const bookingRef = genStayBookingRef()
-  const price = parseFloat(availableHotel.minRate || 0)
-  const currency = availableHotel.currency || 'USD'
-  const resolvedHotelName = availableHotel.name || hotelName || ''
-  const resolvedLocation = [availableHotel.zoneName, availableHotel.destinationName].filter(Boolean).join(' · ') || location || ''
 
   const booking = {
-    id: `stay_demo_${Math.random().toString(36).slice(2, 14)}`,
+    id:                `stay_demo_${Math.random().toString(36).slice(2, 14)}`,
     booking_reference: bookingRef,
-    status: 'confirmed',
-    test_mode: true,
-    guest_name: guestName,
+    status:            'confirmed',
+    test_mode:         true,
+    guest_name:        guestName,
     email,
     hotel: {
-      id:       String(availableHotel.code || hotelCode),
-      name:     resolvedHotelName,
-      location: resolvedLocation,
+      id:       String(hotelCode),
+      name:     hotelName || '',
+      location: location || '',
       image,
     },
     check_in:       checkIn,
     check_out:      checkOut,
     nights,
     guests:         Number(guests),
-    total_amount:   price,
-    total_currency: currency,
+    total_amount:   0,
+    total_currency: 'USD',
     created_at:     new Date().toISOString(),
   }
 
@@ -154,14 +312,14 @@ async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1,
       to: email,
       guestName,
       bookingRef,
-      hotelName: resolvedHotelName,
-      location: resolvedLocation,
+      hotelName:  hotelName || '',
+      location:   location || '',
       checkIn,
       checkOut,
       nights,
       guests,
-      totalPrice: price,
-      currency,
+      totalPrice: 0,
+      currency:   'USD',
       image,
     })
   } catch (err) {
@@ -170,54 +328,6 @@ async function createMockStayBooking({ hotelCode, checkIn, checkOut, guests = 1,
   }
 
   return booking
-}
-
-async function getStayDetail(hotelCode) {
-  const code = String(hotelCode || '').trim()
-  if (!code) throw createError('호텔 코드가 필요합니다.', 400)
-
-  const qs = new URLSearchParams({ language: 'ENG', useSecondaryLanguage: 'false' })
-
-  let res = await fetch(
-    `${BASE_URL}/hotel-content-api/1.0/hotels/${encodeURIComponent(code)}/details?${qs}`,
-    { method: 'GET', headers: getHeaders() }
-  )
-
-  if (!res.ok) {
-    const listQs = new URLSearchParams({ codes: code, language: 'ENG', from: '1', to: '1' })
-    res = await fetch(
-      `${BASE_URL}/hotel-content-api/1.0/hotels?${listQs}`,
-      { method: 'GET', headers: getHeaders() }
-    )
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`Hotelbeds ${res.status}: ${text}`)
-    }
-  }
-
-  const json = await res.json()
-  const hotel = json.hotel || json.hotels?.[0] || json
-  const facilities = (hotel.facilities || [])
-    .map(f => f.description?.content || f.facilityName || f.facilityCode)
-    .filter(Boolean)
-    .slice(0, 18)
-
-  return {
-    id:          String(hotel.code || code),
-    name:        hotel.name?.content || hotel.name || '',
-    description: hotel.description?.content || '',
-    address:     hotel.address?.content || '',
-    city:        hotel.city?.content || hotel.city || '',
-    destination: hotel.destinationName || hotel.destination?.name?.content || '',
-    zone:        hotel.zoneName || '',
-    rating:      hotel.categoryCode ? parseInt(hotel.categoryCode) : null,
-    category:    hotel.categoryName || hotel.categoryCode || '',
-    coordinates: hotel.coordinates || null,
-    phones:      (hotel.phones || []).map(p => p.phoneNumber).filter(Boolean),
-    emails:      (hotel.emails || []).map(e => e.email).filter(Boolean),
-    images:      buildHotelImages(hotel, code),
-    facilities,
-  }
 }
 
 module.exports = { searchStays, getStayDetail, createMockStayBooking }

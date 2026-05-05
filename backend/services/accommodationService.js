@@ -31,15 +31,24 @@ function getDefaultDates() {
   return { checkIn: fmt(ci), checkOut: fmt(co) }
 }
 
+const destIdCache = {}
+
 async function searchDestId(cityName) {
+  if (destIdCache[cityName]) return destIdCache[cityName]
   const url = `${BASE_URL}/api/v1/hotels/searchDestination?query=${encodeURIComponent(cityName)}`
   const res = await fetch(url, { method: 'GET', headers: getHeaders() })
-  if (!res.ok) throw new Error(`Booking.com dest search ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`[Booking.com] searchDestination ${res.status}:`, body)
+    throw new Error(`Booking.com dest search ${res.status}`)
+  }
   const json = await res.json()
   const results = json.data || []
   const dest = results.find(r => r.search_type === 'city') || results[0]
   if (!dest) throw createError(`검색 가능한 여행지가 없습니다: ${cityName}`, 400)
-  return { dest_id: dest.dest_id, search_type: dest.search_type }
+  const result = { dest_id: dest.dest_id, search_type: dest.search_type }
+  destIdCache[cityName] = result
+  return result
 }
 
 async function searchStays({ checkIn, checkOut, guests = 2, country, countryCode }) {

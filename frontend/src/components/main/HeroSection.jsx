@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, ChevronRight, Navigation, MapPin } from 'lucide-react'
+import mainBg from '../../assets/main_bg.png'
 
 const phoneSchedules = [
   { time: '09:00', name: '센소지' },
@@ -62,8 +63,16 @@ function PhoneMockup() {
 export default function HeroSection() {
   const navigate = useNavigate()
   return (
-    <section className="pt-40 pb-24 px-6 bg-gradient-to-br from-blue-50 via-purple-50/60 to-pink-50">
-      <div className="max-w-[1200px] mx-auto">
+    <section
+      className="relative overflow-hidden px-6 pt-40 pb-24"
+      style={{
+        backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.58) 34%, rgba(255,255,255,0.28) 64%, rgba(255,255,255,0.12) 100%), url(${mainBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04)_45%,rgba(255,255,255,0.16))] pointer-events-none" />
+      <div className="relative max-w-[1200px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="flex flex-col gap-7">
             <div className="inline-flex items-center gap-2 bg-white/80 border border-blue-100 text-blue-600 px-4 py-2 rounded-full w-fit shadow-sm">
@@ -100,8 +109,6 @@ export default function HeroSection() {
           <div className="relative flex justify-center lg:justify-end">
             <div className="relative w-full max-w-[320px]">
               <PhoneMockup />
-              <div className="absolute -top-8 -left-8 w-24 h-24 bg-blue-300 rounded-full blur-3xl opacity-30 pointer-events-none" />
-              <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-purple-300 rounded-full blur-3xl opacity-30 pointer-events-none" />
             </div>
           </div>
         </div>

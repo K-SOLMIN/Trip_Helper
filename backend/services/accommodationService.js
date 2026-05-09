@@ -105,7 +105,6 @@ function pickImage(value) {
     value?.image?.source,
     value?.image?.urlTemplate,
     value?.media?.url,
-    value?.media?.url,
     value?.cardLink?.resource?.value,
     value?.propertyImage?.fallbackImage?.url,
     value?.propertyGallery?.images?.[0]?.image?.url,

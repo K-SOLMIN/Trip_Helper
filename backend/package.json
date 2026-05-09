@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "seed:vector": "node scripts/ingest.js --recreate",
+    "seed:vector:upsert": "node scripts/ingest.js --upsert-only",
+    "seed:vector:dry-run": "node scripts/ingest.js --dry-run",
+    "migrate:knowledge": "node scripts/migrate-knowledge.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +18,7 @@
   "dependencies": {
     "@duffel/api": "^4.25.0",
     "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
@@ -23,6 +28,7 @@
     "mysql2": "^3.22.3",
     "nodemailer": "^8.0.7",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.4.3"
   }
 }

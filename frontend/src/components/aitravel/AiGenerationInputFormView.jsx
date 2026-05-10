@@ -314,6 +314,57 @@ export default function AiGenerationInputFormView({ openCalendar, setOpenCalenda
             </div>
           </section>
         </div>
+        <div className="confirm-modal" id="collabConfirmModal" role="dialog" aria-modal="true" aria-labelledby="collabConfirmTitle">
+          <section className="confirm-dialog collab-dialog">
+            <div className="confirm-head">
+              <h3 id="collabConfirmTitle">다른 사람과 동시에 작업할까요?</h3>
+              <p>함께 작업을 선택하면 공유 URL을 만들고, 방장이 먼저 작업창을 열 수 있습니다.</p>
+            </div>
+            <div className="collab-confirm-body">
+              <div className="collab-mode-card">
+                <strong>혼자 이어가기</strong>
+                <span>현재 입력폼에서 계속 여행 조건을 작성합니다.</span>
+              </div>
+              <div className="collab-mode-card active">
+                <strong>함께 작업하기</strong>
+                <span>URL을 공유하고 같은 입력 항목을 협업 화면에서 작성합니다.</span>
+              </div>
+            </div>
+            <div className="collab-member-body">
+              <label htmlFor="collabMemberCount">동시작업 인원</label>
+              <div className="collab-member-row">
+                <button className="confirm-button light" id="collabMemberMinusBtn" type="button">-</button>
+                <input id="collabMemberCount" type="number" min="2" max="20" defaultValue="2" />
+                <button className="confirm-button light" id="collabMemberPlusBtn" type="button">+</button>
+              </div>
+              <p id="collabMemberGuide">방장을 포함해 함께 입력할 사람 수를 정해주세요.</p>
+            </div>
+            <div className="confirm-actions">
+              <button className="confirm-button light" id="collabSoloBtn" type="button">혼자 할게요</button>
+              <button className="confirm-button primary" id="collabTogetherBtn" type="button">함께 작업하기</button>
+            </div>
+          </section>
+        </div>
+        <div className="confirm-modal" id="collabShareModal" role="dialog" aria-modal="true" aria-labelledby="collabShareTitle">
+          <section className="confirm-dialog collab-dialog">
+            <div className="confirm-head">
+              <h3 id="collabShareTitle">동시작업 URL이 생성되었습니다</h3>
+              <p>방장이 이 URL을 복사해 함께 작업할 사람들에게 공유하면 됩니다.</p>
+            </div>
+            <div className="collab-share-body">
+              <label htmlFor="collabRoomUrl">공유 URL</label>
+              <div className="collab-url-row">
+                <input id="collabRoomUrl" type="text" readOnly />
+                <button className="confirm-button light" id="collabCopyBtn" type="button">URL 복사</button>
+              </div>
+              <p className="collab-copy-state" id="collabCopyState"></p>
+            </div>
+            <div className="confirm-actions">
+              <button className="confirm-button light" id="collabBackBtn" type="button">이전</button>
+              <button className="confirm-button primary" id="collabOpenRoomBtn" type="button">작업창 생성</button>
+            </div>
+          </section>
+        </div>
         {openCalendar === 'startDate' && (
           <CalendarPicker
             value={dates.startDate}

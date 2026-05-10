@@ -7,6 +7,7 @@ const { swaggerUi, swaggerSpec } = require('./config/swagger');
 const errorHandler = require('./middlewares/errorHandler');
 const { generalLimiter } = require('./middlewares/rateLimiter');
 const apiRoutes = require('./routes');
+const { attachCollaborationSocket } = require('./services/collaborationSocket');
 require('./config/database');
 
 const app = express();
@@ -24,8 +25,10 @@ app.use('/api', apiRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   const BASE = process.env.BACKEND_URL || `http://localhost:${PORT}`;
   console.log(`Server:  ${BASE}`);
   console.log(`Swagger: ${BASE}/api-docs`);
 });
+
+attachCollaborationSocket(server);

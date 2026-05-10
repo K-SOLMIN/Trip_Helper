@@ -33,6 +33,7 @@ export function initAiGenerationInputForm() {
       let warningTimer;
       let collabHelpTimer;
       let collabButtonWasVisible = false;
+      let collabRoomUrl = "";
   
       function escapeHtml(value) {
         return String(value)
@@ -408,6 +409,65 @@ export function initAiGenerationInputForm() {
           styles: [...state.styles]
         };
       }
+
+      function createRoomId() {
+        return `trip-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      }
+
+      function travelerCount() {
+        return state.adults + state.teens + state.children + state.infants;
+      }
+
+      function collabMemberCount() {
+        const input = $("collabMemberCount");
+        const value = parseInt(input.value, 10);
+        return Math.min(20, Math.max(2, Number.isNaN(value) ? 2 : value));
+      }
+
+      function setCollabMemberCount(value) {
+        $("collabMemberCount").value = Math.min(20, Math.max(2, value));
+      }
+  
+      function openCollabConfirmModal() {
+        addPendingStyle();
+        if (!(state.startDate && state.endDate && getNights() > 0)) {
+          showStepWarning(0, "함께 작업하기 전에 출발일과 귀국일을 입력해주세요.");
+          return;
+        }
+        setCollabMemberCount(Math.min(20, Math.max(2, adultTeenTotal())));
+        $("collabMemberGuide").textContent = `총 여행 인원은 ${travelerCount()}명입니다. 실제로 같이 입력할 사람 수만 정해주세요.`;
+        $("collabConfirmModal").classList.add("show");
+        $("collabTogetherBtn").focus();
+      }
+
+      function closeCollabConfirmModal() {
+        $("collabConfirmModal").classList.remove("show");
+        $("collabPlanBtn").focus();
+      }
+
+      function openCollabShareModal() {
+        const roomId = createRoomId();
+        const members = collabMemberCount();
+        collabRoomUrl = `${location.origin}/ai-collaboration-planning/${roomId}?members=${members}`;
+        sessionStorage.setItem("aiTripDraft", JSON.stringify(tripDraft()));
+        sessionStorage.setItem("aiCollabMemberCount", String(members));
+        $("collabRoomUrl").value = collabRoomUrl;
+        $("collabCopyState").textContent = "";
+        $("collabConfirmModal").classList.remove("show");
+        $("collabShareModal").classList.add("show");
+        $("collabCopyBtn").focus();
+      }
+
+      function closeCollabShareModal() {
+        $("collabShareModal").classList.remove("show");
+        $("collabTogetherBtn").focus();
+      }
+
+      function copyCollabUrl() {
+        $("collabRoomUrl").select();
+        navigator.clipboard?.writeText(collabRoomUrl);
+        $("collabCopyState").textContent = "공유 URL이 복사되었습니다.";
+      }
   
       function openConfirmModal() {
         addPendingStyle();
@@ -642,8 +702,28 @@ export function initAiGenerationInputForm() {
       $("submitBtn").addEventListener("click", openConfirmModal);
   
       $("collabPlanBtn").addEventListener("click", () => {
-        sessionStorage.setItem("aiTripDraft", JSON.stringify(tripDraft()));
-        location.href = "websocket-planning.html";
+        openCollabConfirmModal();
+      });
+
+      $("collabSoloBtn").addEventListener("click", closeCollabConfirmModal);
+      $("collabMemberMinusBtn").addEventListener("click", () => {
+        setCollabMemberCount(collabMemberCount() - 1);
+      });
+      $("collabMemberPlusBtn").addEventListener("click", () => {
+        setCollabMemberCount(collabMemberCount() + 1);
+      });
+      $("collabMemberCount").addEventListener("change", () => {
+        setCollabMemberCount(collabMemberCount());
+      });
+      $("collabTogetherBtn").addEventListener("click", openCollabShareModal);
+      $("collabBackBtn").addEventListener("click", () => {
+        $("collabShareModal").classList.remove("show");
+        $("collabConfirmModal").classList.add("show");
+        $("collabTogetherBtn").focus();
+      });
+      $("collabCopyBtn").addEventListener("click", copyCollabUrl);
+      $("collabOpenRoomBtn").addEventListener("click", () => {
+        location.href = collabRoomUrl;
       });
   
       $("confirmCloseBtn").addEventListener("click", closeConfirmModal);
@@ -651,10 +731,24 @@ export function initAiGenerationInputForm() {
       $("confirmModal").addEventListener("click", event => {
         if (event.target.id === "confirmModal") closeConfirmModal();
       });
+
+      $("collabConfirmModal").addEventListener("click", event => {
+        if (event.target.id === "collabConfirmModal") closeCollabConfirmModal();
+      });
+
+      $("collabShareModal").addEventListener("click", event => {
+        if (event.target.id === "collabShareModal") closeCollabShareModal();
+      });
   
       document.addEventListener("keydown", event => {
         if (event.key === "Escape" && $("confirmModal").classList.contains("show")) {
           closeConfirmModal();
+        }
+        if (event.key === "Escape" && $("collabConfirmModal").classList.contains("show")) {
+          closeCollabConfirmModal();
+        }
+        if (event.key === "Escape" && $("collabShareModal").classList.contains("show")) {
+          closeCollabShareModal();
         }
       });
   

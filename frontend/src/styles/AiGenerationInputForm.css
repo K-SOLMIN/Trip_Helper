@@ -1300,6 +1300,127 @@
       background: #f8fafc;
     }
 
+    .ai-generation-input-form-page .collab-dialog {
+      width: min(100%, 620px);
+    }
+
+    .ai-generation-input-form-page .collab-confirm-body, .ai-generation-input-form-page .collab-share-body {
+      padding: 18px 20px;
+    }
+
+    .ai-generation-input-form-page .collab-confirm-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .ai-generation-input-form-page .collab-mode-card {
+      padding: 16px;
+      border-radius: var(--radius);
+      background: #f6f9fc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .ai-generation-input-form-page .collab-mode-card.active {
+      background: #f0f9ff;
+      border-color: #7dd3fc;
+      box-shadow: 0 10px 20px rgba(14, 165, 233, 0.12);
+    }
+
+    .ai-generation-input-form-page .collab-mode-card strong, .ai-generation-input-form-page .collab-mode-card span {
+      display: block;
+    }
+
+    .ai-generation-input-form-page .collab-mode-card strong {
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.35;
+      font-weight: 950;
+    }
+
+    .ai-generation-input-form-page .collab-mode-card span {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .ai-generation-input-form-page .collab-share-body label {
+      display: block;
+      margin-bottom: 8px;
+      color: #738095;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .ai-generation-input-form-page .collab-url-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .ai-generation-input-form-page .collab-url-row input {
+      min-width: 0;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      border: 1px solid #d4deeb;
+      color: var(--ink);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .ai-generation-input-form-page .collab-copy-state {
+      min-height: 18px;
+      margin: 8px 0 0;
+      color: #07543f;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .ai-generation-input-form-page .collab-member-body {
+      padding: 0 20px 18px;
+    }
+
+    .ai-generation-input-form-page .collab-member-body label {
+      display: block;
+      margin-bottom: 8px;
+      color: #738095;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .ai-generation-input-form-page .collab-member-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+    }
+
+    .ai-generation-input-form-page .collab-member-row input {
+      min-width: 0;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      border: 1px solid #d4deeb;
+      color: var(--ink);
+      background: #fff;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .ai-generation-input-form-page .collab-member-body p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      font-weight: 700;
+    }
+
     .ai-generation-input-form-page .confirm-button {
       min-height: 44px;
       padding: 0 16px;
@@ -1436,6 +1557,10 @@
         display: grid;
         grid-template-columns: 1fr;
       }
+
+      .ai-generation-input-form-page .collab-confirm-body, .ai-generation-input-form-page .collab-url-row {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 420px) {
@@ -1452,4 +1577,3 @@
       }
     }
   
-

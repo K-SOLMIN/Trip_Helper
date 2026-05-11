@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Smartphone, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Smartphone, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import loginBg from '../assets/login_bg.png'
 import { API_BASE } from '../api/config'
+import { useAuth } from '../store/AuthContext'
 
 const DESTINATIONS = [
   { emoji: '🏖️', name: '보라카이', top: '12%',  right: '8%',  delay: '0s'   },
@@ -24,12 +25,16 @@ function Seagull({ style }) {
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName]         = useState('')
   const [showPw, setShowPw]     = useState(false)
   const [tab, setTab]           = useState('login')
-  const [animDir, setAnimDir]   = useState('right')   // 'left' | 'right'
+  const [animDir, setAnimDir]   = useState('right')
   const [animKey, setAnimKey]   = useState(0)
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
   const prevTab = useRef('login')
 
   const switchTab = (next) => {
@@ -38,13 +43,38 @@ export default function LoginPage() {
     prevTab.current = tab
     setTab(next)
     setAnimKey(k => k + 1)
+    setError('')
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const userName = email.trim().split('@')[0] || '사용자'
-    localStorage.setItem('tripHelperUserName', userName)
-    navigate('/home')
+    setError('')
+    setLoading(true)
+    try {
+      const endpoint = tab === 'login' ? '/auth/login' : '/auth/signup'
+      const body = tab === 'login'
+        ? { email, password }
+        : { email, password, name }
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || '오류가 발생했습니다.')
+        return
+      }
+
+      login(data.user, data.token)
+      navigate('/home')
+    } catch {
+      setError('서버에 연결할 수 없습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -163,6 +193,21 @@ export default function LoginPage() {
               className={animDir === 'right' ? 'tab-from-right' : 'tab-from-left'}
               style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
             >
+              {/* 닉네임 — 회원가입 탭에서만 표시 */}
+              {tab === 'signup' && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#0e4f6e', paddingLeft: 2, display: 'block', marginBottom: 6, letterSpacing: '.3px' }}>닉네임</label>
+                  <div style={{ position: 'relative' }}>
+                    <User style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#0e7490', pointerEvents: 'none' }} />
+                    <input
+                      type="text" value={name} onChange={e => setName(e.target.value)}
+                      placeholder="표시될 이름" required={tab === 'signup'} className="login-input"
+                      style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,.6)', border: '1.5px solid rgba(14,116,144,.25)', borderRadius: 12, padding: '11px 14px 11px 38px', color: '#0c3547', fontSize: 14, fontFamily: 'inherit', transition: 'all .2s' }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* 이메일 */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#0e4f6e', paddingLeft: 2, display: 'block', marginBottom: 6, letterSpacing: '.3px' }}>이메일</label>
@@ -199,13 +244,20 @@ export default function LoginPage() {
                 </button>
               </div>
 
+              {error && (
+                <p style={{ fontSize: 13, color: '#dc2626', background: 'rgba(220,38,38,.08)', border: '1px solid rgba(220,38,38,.2)', borderRadius: 10, padding: '9px 13px', margin: 0 }}>
+                  {error}
+                </p>
+              )}
+
               <button
                 type="submit"
-                style={{ width: '100%', background: 'linear-gradient(135deg,#0ea5e9,#0e7490)', color: 'white', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 14, border: 'none', cursor: 'pointer', marginTop: 4, boxShadow: '0 8px 24px rgba(14,116,144,.4)', transition: 'transform .15s, box-shadow .15s', fontFamily: 'inherit' }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(14,116,144,.55)' }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)';   e.currentTarget.style.boxShadow = '0 8px 24px rgba(14,116,144,.4)' }}
+                disabled={loading}
+                style={{ width: '100%', background: loading ? 'rgba(14,116,144,.5)' : 'linear-gradient(135deg,#0ea5e9,#0e7490)', color: 'white', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 14, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', marginTop: 4, boxShadow: '0 8px 24px rgba(14,116,144,.4)', transition: 'transform .15s, box-shadow .15s', fontFamily: 'inherit' }}
+                onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(14,116,144,.55)' } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(14,116,144,.4)' }}
               >
-                {tab === 'login' ? '로그인' : '회원가입'}
+                {loading ? '처리 중...' : tab === 'login' ? '로그인' : '회원가입'}
               </button>
             </form>
 

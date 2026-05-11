@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { SearchProvider } from './store/SearchContext'
+import { AuthProvider, useAuth } from './store/AuthContext'
 import MainPage from './pages/MainPage'
 import AiTravelPage from './pages/AiTravelPage'
 import AiGenerationInputForm from './pages/AiGenerationInputForm'
@@ -33,12 +34,13 @@ function LegacyAccommodationRedirect() {
 function SocialAuthRedirect() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { login } = useAuth()
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const code = params.get('code')
 
-    async function fetchUserName() {
+    async function handleKakaoCallback() {
       if (!code) return
 
       const profileParams = new URLSearchParams({ code })
@@ -54,22 +56,23 @@ function SocialAuthRedirect() {
         return
       }
 
-      const profile = await res.json()
-      if (profile.userName) {
-        localStorage.setItem('tripHelperUserName', profile.userName)
+      const data = await res.json()
+      if (data.token && data.user) {
+        login(data.user, data.token)
       }
     }
 
-    fetchUserName()
+    handleKakaoCallback()
       .catch(err => console.error('카카오 로그인 처리 실패:', err))
       .finally(() => navigate('/home', { replace: true }))
-  }, [location.search, navigate])
+  }, [location.search, navigate, login])
 
   return null
 }
 
 export default function App() {
   return (
+    <AuthProvider>
     <SearchProvider>
       <BrowserRouter>
         <Routes>
@@ -101,5 +104,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </SearchProvider>
+    </AuthProvider>
   )
 }

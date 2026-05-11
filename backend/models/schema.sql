@@ -6,12 +6,21 @@ SET time_zone = '+09:00';
 
 -- ─── 사용자 ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-  id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
-  email      VARCHAR(255) NOT NULL UNIQUE,
-  name       VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  id            BIGINT       AUTO_INCREMENT PRIMARY KEY,
+  email         VARCHAR(255) NULL UNIQUE,
+  name          VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(255) NULL,
+  provider      VARCHAR(20)  NOT NULL DEFAULT 'email',
+  provider_id   VARCHAR(255) NULL,
+  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- 기존 DB 업그레이드가 필요한 경우 아래 명령을 직접 실행하세요:
+-- ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL,
+--   ADD COLUMN provider VARCHAR(20) NOT NULL DEFAULT 'email',
+--   ADD COLUMN provider_id VARCHAR(255) NULL,
+--   MODIFY COLUMN email VARCHAR(255) NULL;
 
 -- ─── 여행 방 (그룹 플래닝) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS travel_rooms (

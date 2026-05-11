@@ -6,12 +6,36 @@ import '../styles/AiCollaborationPlanning.css'
 
 const MEMBER_COLORS = ['#0f6bff', '#00a676', '#ffb020', '#ef4444', '#7c3aed', '#db2777']
 
-function readDraft() {
+function hasDraftInfo(draft) {
+  return Boolean(draft?.destination || draft?.startDate || draft?.endDate)
+}
+
+function readDraft(searchParams) {
   try {
-    return JSON.parse(sessionStorage.getItem('aiTripDraft') || '{}')
+    const stored = JSON.parse(sessionStorage.getItem('aiTripDraft') || '{}')
+    if (hasDraftInfo(stored)) return stored
   } catch {
-    return {}
+    // fall through to shared URL params
   }
+
+  return {
+    destination: searchParams.get('destination') || '',
+    startDate: searchParams.get('startDate') || '',
+    endDate: searchParams.get('endDate') || '',
+    adults: Number(searchParams.get('adults') || 0),
+    teens: Number(searchParams.get('teens') || 0),
+    children: Number(searchParams.get('children') || 0),
+    infants: Number(searchParams.get('infants') || 0),
+  }
+}
+
+function buildRoomUrl(roomId, memberCount, draft) {
+  const params = new URLSearchParams({ members: String(memberCount) })
+  ;['destination', 'startDate', 'endDate', 'adults', 'teens', 'children', 'infants'].forEach(key => {
+    const value = draft?.[key]
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
+  })
+  return `${window.location.origin}/ai-collaboration-planning/${roomId}?${params.toString()}`
 }
 
 const BUDGET_ORDER = ['low', 'mid', 'high']
@@ -79,7 +103,7 @@ export default function AiCollaborationPlanning() {
   const { roomId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [draft] = useState(readDraft)
+  const [draft, setDraft] = useState(() => readDraft(searchParams))
   const memberCount = Math.min(20, Math.max(2, parseInt(searchParams.get('members') || sessionStorage.getItem('aiCollabMemberCount') || '2', 10) || 2))
   const [preferences, setPreferences] = useState(() => Array.from({ length: memberCount }, (_, i) => createPreference(i)))
   const [connectedCount, setConnectedCount] = useState(1)
@@ -89,8 +113,9 @@ export default function AiCollaborationPlanning() {
   const [copied, setCopied] = useState(false)
   const socketRef = useRef(null)
   const initialPreferencesRef = useRef(preferences)
+  const initialDraftRef = useRef(draft)
 
-  const roomUrl = `${window.location.origin}/ai-collaboration-planning/${roomId}?members=${memberCount}`
+  const roomUrl = buildRoomUrl(roomId, memberCount, draft)
   const travelerCount = (draft.adults || 0) + (draft.teens || 0) + (draft.children || 0) + (draft.infants || 0)
   const nights = draft.startDate && draft.endDate
     ? Math.max(0, Math.round((new Date(draft.endDate) - new Date(draft.startDate)) / 86400000))
@@ -116,7 +141,11 @@ export default function AiCollaborationPlanning() {
 
     socket.addEventListener('open', () => {
       setConnectionState('실시간 연결됨')
-      socket.send(JSON.stringify({ type: 'room_init', preferences: initialPreferencesRef.current }))
+      socket.send(JSON.stringify({
+        type: 'room_init',
+        preferences: initialPreferencesRef.current,
+        draft: initialDraftRef.current,
+      }))
     })
     socket.addEventListener('close', () => setConnectionState('연결 끊김'))
     socket.addEventListener('error', () => setConnectionState('연결 오류'))
@@ -138,6 +167,11 @@ export default function AiCollaborationPlanning() {
 
       if ((message.type === 'room_state' || message.type === 'preferences_update') && Array.isArray(message.preferences)) {
         setPreferences(message.preferences)
+      }
+
+      if (message.type === 'room_state' && hasDraftInfo(message.draft)) {
+        setDraft(prev => ({ ...prev, ...message.draft }))
+        sessionStorage.setItem('aiTripDraft', JSON.stringify(message.draft))
       }
 
       if (message.type === 'preference_update' && typeof message.index === 'number' && message.preference) {

@@ -17,9 +17,18 @@ function getRoom(roomId) {
       assignments: new Map(),
       memberCount: 2,
       preferences: null,
+      draft: null,
     });
   }
   return rooms.get(roomId);
+}
+
+function hasDraftInfo(draft) {
+  return Boolean(
+    draft &&
+    typeof draft === 'object' &&
+    (draft.destination || draft.startDate || draft.endDate)
+  );
 }
 
 function assignedIndexes(room) {
@@ -67,6 +76,7 @@ function attachCollaborationSocket(server) {
     send(ws, {
       type: 'room_state',
       preferences: room.preferences,
+      draft: room.draft,
       connectedCount: room.clients.size,
       memberIndex,
     });
@@ -76,11 +86,23 @@ function attachCollaborationSocket(server) {
       const message = safeJson(raw);
       if (!message) return;
 
-      if (message.type === 'room_init' && !room.preferences && Array.isArray(message.preferences)) {
-        room.preferences = message.preferences.slice(0, room.memberCount);
+      if (message.type === 'room_init') {
+        let changed = false;
+        if (!room.preferences && Array.isArray(message.preferences)) {
+          room.preferences = message.preferences.slice(0, room.memberCount);
+          changed = true;
+        }
+        if (!room.draft && hasDraftInfo(message.draft)) {
+          room.draft = message.draft;
+          changed = true;
+        }
+
+        if (!changed) return;
+
         broadcast(room, {
           type: 'room_state',
           preferences: room.preferences,
+          draft: room.draft,
           connectedCount: room.clients.size,
         });
         return;

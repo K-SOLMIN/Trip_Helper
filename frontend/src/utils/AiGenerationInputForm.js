@@ -452,8 +452,14 @@ export function initAiGenerationInputForm() {
       function openCollabShareModal() {
         const roomId = createRoomId();
         const members = collabMemberCount();
-        collabRoomUrl = `${location.origin}/ai-collaboration-planning/${roomId}?members=${members}`;
-        sessionStorage.setItem("aiTripDraft", JSON.stringify(tripDraft()));
+        const draft = tripDraft();
+        const params = new URLSearchParams({ members: String(members) });
+        ["destination", "startDate", "endDate", "adults", "teens", "children", "infants"].forEach(key => {
+          const value = draft[key];
+          if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+        });
+        collabRoomUrl = `${location.origin}/ai-collaboration-planning/${roomId}?${params.toString()}`;
+        sessionStorage.setItem("aiTripDraft", JSON.stringify(draft));
         sessionStorage.setItem("aiCollabMemberCount", String(members));
         $("collabRoomUrl").value = collabRoomUrl;
         $("collabCopyState").textContent = "";

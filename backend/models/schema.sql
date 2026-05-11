@@ -16,11 +16,30 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 기존 DB 업그레이드가 필요한 경우 아래 명령을 직접 실행하세요:
--- ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL,
---   ADD COLUMN provider VARCHAR(20) NOT NULL DEFAULT 'email',
---   ADD COLUMN provider_id VARCHAR(255) NULL,
---   MODIFY COLUMN email VARCHAR(255) NULL;
+-- ─── 기존 DB 마이그레이션 (컬럼 누락 시 추가) ─────────────
+-- 스키마가 이미 존재하는 경우 아래 프로시저가 누락된 컬럼을 추가합니다.
+DROP PROCEDURE IF EXISTS _migrate_users;
+CREATE PROCEDURE _migrate_users()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'provider'
+  ) THEN
+    ALTER TABLE users
+      ADD COLUMN password_hash VARCHAR(255) NULL,
+      ADD COLUMN provider      VARCHAR(20)  NOT NULL DEFAULT 'email',
+      ADD COLUMN provider_id   VARCHAR(255) NULL;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+      AND COLUMN_NAME = 'email' AND IS_NULLABLE = 'NO'
+  ) THEN
+    ALTER TABLE users MODIFY COLUMN email VARCHAR(255) NULL;
+  END IF;
+END;
+CALL _migrate_users();
+DROP PROCEDURE IF EXISTS _migrate_users;
 
 -- ─── 여행 방 (그룹 플래닝) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS travel_rooms (

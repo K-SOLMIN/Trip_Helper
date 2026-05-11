@@ -7,13 +7,8 @@ export default function AiTravelDurationView() {
           <a className="brand" href="#"><span className="brand-icon">📱</span>폰가이즈</a>
           <div className="topbar-trip">
             <strong id="topbarTripTitle">스페인 한달</strong><span className="sep">›</span>
-            <span id="topbarRoute">바르셀로나 → 마드리드 → 세비야 외 7개 도시</span><span className="sep">·</span>
+            <span id="topbarRoute">Day 04 · 바르셀로나 도보 미식 루트</span><span className="sep">·</span>
             <span className="live-pill"><span className="live-dot"></span>Day 04 라이브</span>
-          </div>
-          <div className="topbar-actions">
-            <button className="t-btn translate" data-modal="translate">↔ 번역</button>
-            <button className="t-btn map-btn" data-scroll="mapPanel">⌖ 지도</button>
-            <button className="t-btn ghost" data-modal="emergency">🚨</button>
           </div>
         </div>
       </header>
@@ -47,15 +42,17 @@ export default function AiTravelDurationView() {
         {/* LEFT RAIL: 구간 accordion + 도구 */}
         <aside className="left-rail">
           <div className="c-card">
-            <div className="c-card-title">구간</div>
+            <div className="c-card-title">일정</div>
             <div className="city-list" id="cityAccordion"></div>
           </div>
           <div className="c-card">
             <div className="c-card-title">도구</div>
             <div className="tool-pad">
+              <button className="tool-pad-btn" data-modal="translate"><span>↔</span>번역</button>
               <button className="tool-pad-btn" data-modal="budget"><span>◫</span>예산</button>
               <button className="tool-pad-btn" data-modal="fatigue"><span>◇</span>피로도</button>
               <button className="tool-pad-btn" data-modal="nearby"><span>＋</span>편의시설</button>
+              <button className="tool-pad-btn" data-modal="emergency"><span>🚨</span>긴급</button>
               <button className="tool-pad-btn" data-modal="safety"><span>🛡</span>야간안전</button>
               <button className="tool-pad-btn" data-modal="album"><span>▧</span>앨범</button>
               <button className="tool-pad-btn" data-modal="hotel"><span>🏨</span>숙소</button>

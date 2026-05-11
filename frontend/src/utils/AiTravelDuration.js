@@ -263,11 +263,13 @@ export function initAiTravelDuration() {
     const heroCity = document.getElementById('heroCity')
     const heroTag1 = document.getElementById('heroTag1')
     const heroTag2 = document.getElementById('heroTag2')
+    const day = schedule[activeIdx]
+    const dayTitle = cityData[day?.base]?.title || travelData.routeText
 
     if (tripTitle) tripTitle.textContent = `${travelData.destination} 여행`
-    if (route) route.textContent = travelData.routeText
+    if (route) route.textContent = `Day ${String(day?.day || 1).padStart(2, '0')} · ${dayTitle}`
     if (heroCity) heroCity.textContent = travelData.heroTitle
-    if (heroTag1) heroTag1.innerHTML = `<span class="live-dot"></span> Day ${String(schedule[activeIdx]?.day || 1).padStart(2, '0')} 진행 중`
+    if (heroTag1) heroTag1.innerHTML = `<span class="live-dot"></span> Day ${String(day?.day || 1).padStart(2, '0')} 진행 중`
     if (heroTag2 && travelData.isGenerated) heroTag2.textContent = 'AI 생성 일정 기반으로 여행을 진행합니다'
     if (travelData.isGenerated) {
       const hero = document.querySelector('.ai-travel-duration-page .dest-hero')
@@ -305,6 +307,17 @@ export function initAiTravelDuration() {
     activeTransitStepIdx = null;
     syncTripChrome();
     renderCityAccordion();
+    renderTL();
+    refreshMap();
+    requestSimpleRoute(activeStopIdx, 'walk');
+  }
+
+  function selectStop(nextIdx) {
+    const dayStops = getDayStops(cityData[schedule[activeIdx].base].stops);
+    activeStopIdx = Math.max(0, Math.min(nextIdx, dayStops.length - 1));
+    selectedTravelMode = 'WALKING';
+    activeTransitStepIdx = null;
+    openTransitKey = '';
     renderTL();
     refreshMap();
     requestSimpleRoute(activeStopIdx, 'walk');
@@ -668,6 +681,45 @@ export function initAiTravelDuration() {
     const totalDays = schedule.length;
     const activeDay = schedule[activeIdx].day;
     const progress = Math.round((activeDay / totalDays) * 100);
+
+    if (travelData.isGenerated) {
+      document.getElementById('cityAccordion').innerHTML = `
+        <div class="city-summary">
+          <div class="city-summary-top">
+            <div class="city-summary-day">D${String(activeDay).padStart(2,'0')} <span>/ ${totalDays}</span></div>
+            <div class="city-summary-copy">전체 일정</div>
+          </div>
+          <div class="city-progress" aria-label="여행 진행률 ${progress}%">
+            <div class="city-progress-fill" style="width:${progress}%"></div>
+          </div>
+        </div>
+        <div class="day-nav-list">
+          ${schedule.map((s, idx) => {
+            const d = cityData[s.base];
+            const cls = ['day-nav-btn',
+              idx === activeIdx ? 'active' : '',
+              s.done ? 'done' : '',
+              s.today ? 'today' : '',
+            ].filter(Boolean).join(' ');
+            return `
+              <button class="${cls}" data-idx="${idx}">
+                <span class="day-nav-num">D${String(s.day).padStart(2,'0')}</span>
+                <span class="day-nav-info">
+                  <strong>${d.title}</strong>
+                  <span>${d.stops.length}개 일정</span>
+                </span>
+              </button>`;
+          }).join('')}
+        </div>`;
+
+      document.querySelectorAll('.day-nav-btn[data-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeIdx = parseInt(btn.dataset.idx, 10);
+          syncDayView();
+        });
+      });
+      return;
+    }
   
     const cityHtml = cityGroups.map((g, gi) => {
       const isOpen = g === activeGroup;
@@ -749,7 +801,7 @@ export function initAiTravelDuration() {
       return `
       <div class="tl-node">
         <div class="tl-t">${stop.t}</div>
-        <div class="tl-axis"><span class="tl-dot ${stop.kind}${stop.now && s.today ? ' now' : ''}"></span></div>
+        <div class="tl-axis"><span class="tl-dot ${stop.kind}${i === activeStopIdx ? ' now' : ''}"></span></div>
         <div>
           <div class="tl-card${i === activeStopIdx ? ' active' : ''}${transitOpen ? ' transit-open' : ''}" data-stop-idx="${i}">
             <div class="tl-card-top">
@@ -821,6 +873,7 @@ export function initAiTravelDuration() {
               <label for="stopExp${s.day}-${i}">지출액</label>
               <input id="stopExp${s.day}-${i}" data-stop-expense="${i}" type="number" inputmode="decimal" min="0" placeholder="0" value="${stopExpenses[stopExpenseKey(s.day, i)] ? stopExpenses[stopExpenseKey(s.day, i)].amt : ''}">
               <span>EUR</span>
+              ${i < dayStops.length - 1 ? `<button class="tl-next-btn" type="button" data-next-stop="${i + 1}">다음 일정</button>` : ''}
             </div>
             ${stop.mealReroute?`<div class="reroute-drop" id="mrDrop${i}"><strong>식당 대체 후보</strong><p>루트 420m 이내, 평균 ${formatEurAsKrw(19)} 타파스 바로 변경.</p><div class="reroute-acts"><button class="rd-yes" data-action="applyMeal">적용</button><button class="rd-no" data-action="restore">기존 유지</button></div></div>`:''}
             ${stop.safeReroute?`<div class="reroute-drop" id="srDrop${i}"><strong>안전 우회 경로</strong><p>6분 추가. 대로변, 사고 이력 없음.</p><div class="reroute-acts"><button class="rd-yes" data-action="safeRoute">우회 적용</button><button class="rd-no" data-action="restore">기존 유지</button></div></div>`:''}
@@ -834,12 +887,14 @@ export function initAiTravelDuration() {
     document.querySelectorAll('.tl-card[data-stop-idx]').forEach(card => {
       card.addEventListener('click', e => {
         if (e.target.closest('button, input, select, textarea')) return;
-        activeStopIdx = parseInt(card.dataset.stopIdx, 10);
-        selectedTravelMode = 'WALKING';
-        activeTransitStepIdx = null;
-        renderTL();
-        refreshMap();
-        requestSimpleRoute(activeStopIdx, 'walk');
+        selectStop(parseInt(card.dataset.stopIdx, 10));
+      });
+    });
+
+    document.querySelectorAll('[data-next-stop]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        selectStop(parseInt(btn.dataset.nextStop, 10));
       });
     });
   

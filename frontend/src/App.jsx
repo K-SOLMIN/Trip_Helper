@@ -9,6 +9,7 @@ import AiGenerationLoading from './pages/AiGenerationLoading'
 import AiGenerationSchedule from './pages/AiGenerationSchedule'
 import AiTravelDuration from './pages/AiTravelDuration'
 import AiCollaborationPlanning from './pages/AiCollaborationPlanning'
+import AiCollabLoading from './pages/AiCollabLoading'
 import Home from './pages/Home'
 import SearchResults from './pages/SearchResults'
 import SeatSelection from './pages/SeatSelection'
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/ai-generation-schedule" element={<AiGenerationSchedule />} />
           <Route path="/ai-travel-duration" element={<AiTravelDuration />} />
           <Route path="/ai-collaboration-planning/:roomId" element={<AiCollaborationPlanning />} />
+          <Route path="/ai-collab-loading" element={<AiCollabLoading />} />
           <Route path="/flights" element={<Home />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/seats/:offerId" element={<SeatSelection />} />

@@ -505,6 +505,26 @@ export function initAiTravelDuration() {
     const route = getRouteInfo(dayStops, stop, activeStopIdx);
     setRoute(`${route.origin} → ${route.destination}`, `${transport.rec} ${transport.detail}`);
   }
+
+  function buildGoogleMapsRouteUrl() {
+    const s = schedule[activeIdx];
+    const dayStops = getDayStops(cityData[s.base].stops);
+    const stop = dayStops[activeStopIdx];
+    if (!stop) return null;
+    const route = getRouteInfo(dayStops, stop, activeStopIdx);
+    const p = getRouteSegment(s.base, activeStopIdx);
+    const modeMap = { TRANSIT: 'transit', WALKING: 'walking', TAXI: 'driving' };
+    const travelmode = modeMap[selectedTravelMode] || 'transit';
+
+    const origin = p.length >= 2
+      ? `${p[0].lat},${p[0].lng}`
+      : encodeURIComponent(route.origin);
+    const destination = p.length >= 2
+      ? `${p[p.length - 1].lat},${p[p.length - 1].lng}`
+      : encodeURIComponent(route.destination);
+
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=${travelmode}`;
+  }
   
   function cleanStepText(html) {
     const div = document.createElement('div');
@@ -1107,6 +1127,11 @@ export function initAiTravelDuration() {
         setTimeout(() => document.getElementById('expAmt').focus(), 400); break;
       case 'openMapModal':
         openMapModal(); break;
+      case 'routeGuide': {
+        const url = buildGoogleMapsRouteUrl();
+        if (url) window.open(url, '_blank', 'noopener');
+        break;
+      }
       case '_dismiss': document.getElementById('toast').classList.remove('show'); break;
     }
   }

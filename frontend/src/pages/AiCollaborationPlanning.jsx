@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { Check, Copy, Share2 } from 'lucide-react'
 import { BUDGETS, STYLE_SUGGESTIONS } from '../data/AiGenerationInputForm'
 import '../styles/AiCollaborationPlanning.css'
@@ -11,6 +11,45 @@ function readDraft() {
     return JSON.parse(sessionStorage.getItem('aiTripDraft') || '{}')
   } catch {
     return {}
+  }
+}
+
+const BUDGET_ORDER = ['low', 'mid', 'high']
+
+function aggregatePreferences(preferences, draft) {
+  const budgets = preferences.map(p => p.budget).filter(Boolean)
+  const avgBudgetIdx = budgets.length
+    ? Math.round(budgets.reduce((sum, b) => sum + BUDGET_ORDER.indexOf(b), 0) / budgets.length)
+    : 1
+  const budget = BUDGET_ORDER[Math.max(0, Math.min(2, avgBudgetIdx))]
+
+  const avgIntensity = preferences.reduce((sum, p) => sum + (p.intensity ?? 50), 0) / preferences.length
+  const difficulty = avgIntensity <= 30 ? 'relaxed'
+    : avgIntensity <= 55 ? 'normal'
+    : avgIntensity <= 75 ? 'active'
+    : 'intense'
+
+  const styles = [...new Set(preferences.flatMap(p => p.styles || []))]
+  const places = [...new Set(preferences.flatMap(p => p.places || []))]
+
+  const nights = draft.startDate && draft.endDate
+    ? Math.max(0, Math.round((new Date(draft.endDate) - new Date(draft.startDate)) / 86400000))
+    : 0
+
+  return {
+    country: draft.destination || '',
+    destination: draft.destination || '',
+    startDate: draft.startDate || '',
+    endDate: draft.endDate || '',
+    nights,
+    budget,
+    styles,
+    difficulty,
+    adults: Number(draft.adults || 0) + Number(draft.teens || 0),
+    children: Number(draft.children || 0) + Number(draft.infants || 0),
+    mustVisit: places.join(', '),
+    hasAccommodation: draft.hasAccommodation ?? null,
+    accommodations: draft.accommodations || [],
   }
 }
 
@@ -39,6 +78,7 @@ function collaborationWsUrl(roomId, memberCount) {
 export default function AiCollaborationPlanning() {
   const { roomId } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [draft] = useState(readDraft)
   const memberCount = Math.min(20, Math.max(2, parseInt(searchParams.get('members') || sessionStorage.getItem('aiCollabMemberCount') || '2', 10) || 2))
   const [preferences, setPreferences] = useState(() => Array.from({ length: memberCount }, (_, i) => createPreference(i)))
@@ -150,6 +190,12 @@ export default function AiCollaborationPlanning() {
 
   const removePlace = (index, place) => {
     updatePreference(index, { places: preferences[index].places.filter(p => p !== place) })
+  }
+
+  const handleGeneratePlan = () => {
+    const params = aggregatePreferences(preferences, draft)
+    sessionStorage.setItem('aiCollabParams', JSON.stringify(params))
+    navigate('/ai-collab-loading')
   }
 
   return (
@@ -433,7 +479,14 @@ export default function AiCollaborationPlanning() {
             <strong>{completedCount}/{memberCount}명 취향 입력 완료</strong>
             <span>입력값 합산 후 AI 일정 생성 요청에 전달됩니다.</span>
           </div>
-          <button type="button" className="collab-create-btn">AI 일정 생성 준비</button>
+          <button
+            type="button"
+            className="collab-create-btn"
+            disabled={completedCount === 0}
+            onClick={handleGeneratePlan}
+          >
+            {completedCount === memberCount ? 'AI 일정 생성하기' : `AI 일정 생성 준비 (${completedCount}/${memberCount}명 완료)`}
+          </button>
         </footer>
       </main>
     </div>

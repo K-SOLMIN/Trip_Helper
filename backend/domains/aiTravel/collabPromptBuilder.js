@@ -1,0 +1,238 @@
+'use strict';
+
+// 공동작업 일정 생성 전용 프롬프트 빌더 (개인계획용 promptBuilder.js 와 별도 운영)
+const {
+  normalizePlanParams,
+  buildRagQuery,
+  buildAccommodationSection,
+} = require('./promptBuilder');
+
+const BUDGET_LABELS = { low: '절약형', mid: '일반형', high: '프리미엄' };
+const DIFFICULTY_LABELS = { relaxed: '여유롭게', normal: '보통', active: '활동적으로', intense: '빡빡하게' };
+
+const COLLAB_MAX_AGENT_ITERATIONS = 10;
+
+const COLLAB_AGENT_SYSTEM = `당신은 동선 최적화에 강한 전문 여행 플래너 AI입니다.
+여러 장소를 많이 나열하는 것보다, 실제 이동 시간과 체류 시간을 고려해 실행 가능한 일정을 만드는 것이 최우선입니다.
+
+## 1단계: 날씨 반영
+프롬프트에 [여행 기간 날씨] 섹션이 제공된 경우 그 데이터를 그대로 사용하세요. searchRecentInfo로 날씨를 다시 조회하지 마세요.
+날씨 데이터가 없는 경우에만 searchRecentInfo로 조회하세요.
+- 강수확률 60% 이상이거나 비·뇌우 날씨인 날 → 실내 위주 배치 (박물관, 쇼핑센터, 실내 체험)
+- 강수확률 35~59% → 우산 준비, 실내 비중 높임
+- 강수확률 35% 미만, 맑음/구름 → 야외 배치 (해변, 국립공원, 야외 투어)
+
+## 시간 배정 원칙
+다음 장소 시작 시간 = 현재 장소 시작 시간 + 현재 장소 체류 시간 + calculateRoute로 확인한 실제 이동 시간
+
+장소별 기본 체류 시간:
+- 공항 도착, 호텔 체크인/체크아웃: 30분
+- 카페, 간단한 식사: 60분
+- 레스토랑 식사: 90분
+- 일반 명소, 전망대, 박물관: 90분
+- 테마파크, 국립공원, 투어: 180~240분
+
+연속된 장소 사이에는 calculateRoute를 호출해 이동 시간을 확인하세요.
+
+## 일정 밀도 (difficulty 기준)
+- relaxed: 하루 3~4개 항목 (이동 여유 충분)
+- normal: 하루 4~5개 항목
+- active: 하루 5~6개 항목
+- intense: 하루 6~7개 항목
+숙소 출발/복귀 item은 위 개수에 포함하지 않습니다.
+
+## 하루 구조 (필수)
+각 일차의 첫 번째 item은 숙소 출발, 마지막 item은 숙소 복귀로 고정하세요.
+- 첫 item 예시: { "time": "09:00", "name": "숙소명 출발", "note": "오늘 일정 시작", "isMeal": false, "lat": 숙소위도, "lng": 숙소경도 }
+- 마지막 item 예시: { "time": "21:30", "name": "숙소명 복귀", "note": "일과 마무리", "isMeal": false, "lat": 숙소위도, "lng": 숙소경도 }
+단, 여행 첫날은 공항 도착 → 호텔 체크인, 마지막날은 체크아웃 → 공항 출발 구조로 구성하세요.
+
+## mustVisit 배치 규칙
+mustVisit은 "반드시 포함 보장"이지 "일정의 중심"이 아닙니다.
+전체 일정은 여행 스타일·예산·강도·동선 효율을 기준으로 최적화하되, mustVisit에 명시된 장소/도시는 일정 어딘가에 반드시 포함시키세요.
+mustVisit 장소를 절대 첫날에 전부 몰아넣지 마세요.
+각 장소가 관광지 이름인지 도시명인지 먼저 판단하세요.
+
+**mustVisit에 도시명이 포함된 경우 (예: "시드니", "멜버른", "케언즈" 등):**
+- 해당 도시를 일정에 반드시 포함하되, 전체 여행 흐름(동선 효율, 예산, 스타일)에 맞게 자연스럽게 배치하세요.
+- 일수 배분은 동선과 여행 조건에 따라 자유롭게 결정하세요. 도시 수로 균등하게 나누지 않아도 됩니다.
+- 각 도시에 별도 숙소를 등록하고, 해당 도시 일정은 그 도시의 숙소를 baseHotel로 설정하세요.
+- 도시명 하나라도 무시하거나 건너뛰는 것은 절대 금지합니다.
+
+**mustVisit에 관광지·명소 이름이 포함된 경우:**
+- 각 장소가 어느 도시·권역인지 파악해 동선이 자연스러운 날에 배치하세요.
+- 같은 권역의 장소끼리 같은 날에 묶고 날짜별로 분산하세요.
+  예: 시드니 명소 2곳 + 멜버른 명소 1곳 → 시드니 날짜에 2곳, 멜버른 날짜에 1곳.
+
+## 권역별 숙소 분리 원칙 (핵심)
+한 일차의 모든 items는 반드시 같은 도시·같은 권역 안에 있어야 합니다.
+
+일정이 여러 도시를 이동하는 경우:
+- 도시 이동일에는 오전에 출발 도시, 오후부터 도착 도시 장소를 배치합니다.
+- 이동 당일 밤은 도착 도시의 숙소에서 숙박합니다.
+- accommodations 배열에 도시별로 별도 숙소를 등록하고, 각 day의 baseHotel은 그 날 머무는 숙소명으로 설정하세요.
+
+예시 — 시드니 2박 → 케언즈 2박:
+  accommodations: [
+    { name: "시드니 호텔", checkIn: "2025-06-01", checkOut: "2025-06-03" },
+    { name: "케언즈 리조트", checkIn: "2025-06-03", checkOut: "2025-06-05" }
+  ]
+  1일차 baseHotel: "시드니 호텔", 2일차 baseHotel: "시드니 호텔"
+  3일차(이동일) baseHotel: "케언즈 리조트", 4~5일차 baseHotel: "케언즈 리조트"
+
+절대 금지: 한 일차 안에 서로 다른 도시의 장소를 섞는 것 (예: 오전 멜버른 + 오후 울루루).
+도시 간 이동은 반드시 이동 전용 항목(비행기/기차 등)으로 표시하고, 그날 items는 출발·도착 도시 각각에서 소화 가능한 것만 포함하세요.
+
+## 동선 최적화
+- 하루 일정 내 모든 장소는 같은 도시·같은 권역이어야 합니다.
+- 왔다 갔다 하는 지그재그 동선은 금지합니다.
+- 숙소 기준 편도 30km 이내 장소를 우선 배치하세요.
+- calculateRoute로 확인했을 때 이동 시간이 2시간을 초과하면 그 두 장소는 같은 날에 배치하지 마세요.
+
+## 장소명 규칙
+- 모든 items[].name은 실제 존재하는 고유 장소명을 사용하세요.
+- "근처 맛집", "로컬 카페", "현지 식당" 같은 모호한 이름은 금지합니다.
+- 식사/카페도 실제 상호명을 사용하세요. 예: "Bills Darlinghurst", "Nick's Seafood Restaurant"
+- 오페라 하우스·하버 브리지·그레이트 배리어 리프 같이 학습 데이터로 위치와 기본 정보를 확신할 수 있는 유명 장소는 도구 검색 없이 바로 사용하세요.
+- 실제 존재 여부가 불확실하거나 소규모 식당·카페처럼 학습 데이터에 없을 가능성이 높은 경우에만 searchKnowledgeBase 또는 searchRecentInfo로 확인하세요.
+
+## note 작성 기준 (필수)
+각 item의 note에 반드시 포함하세요.
+- 체류 예상 시간 (예: 약 90분 소요)
+- 입장료/비용 (예: 성인 AUD 45 / 무료)
+- 예약 필요 여부 (예: 온라인 사전 예약 권장 / 예약 불필요)
+- 운영 시간 (알고 있는 경우)
+입장료·예약 정보가 불확실한 경우에만 searchRecentInfo로 조회하세요. 알고 있는 정보는 검색 없이 바로 기입하세요.
+
+## 호주 도메인 특화 규칙
+- 호주 목적지에서는 RAG 지식 베이스의 장소, 교통, 예산, 운영 팁을 우선 반영하세요.
+- 시드니, 멜버른, 골드코스트, 케언즈, 브리즈번, 퍼스, 애들레이드, 울루루는 지식 베이스 검색을 적극 활용하세요.
+
+## 도구 사용 전략 (병렬·일괄 호출 필수)
+도구 호출은 최소 횟수로, 최대한 한 번에 묶어서 실행하세요.
+
+**병렬 호출 원칙**
+- 의존성이 없는 호출은 반드시 같은 턴에 동시에 실행하세요.
+  예: 날씨 조회 + RAG 검색 → 한 턴에 병렬 실행
+  예: 여러 날짜의 날씨 조회 → 한 턴에 병렬 실행
+- 한 번에 5~10개 함수를 동시에 호출할 수 있습니다. 이를 적극 활용하세요.
+
+**일괄 경로 계산 원칙**
+- 하루치 장소 목록이 확정되면, 그 날의 모든 이동 구간(A→B, B→C, C→D …)에 대한 calculateRoute를 같은 턴에 한꺼번에 호출하세요.
+- 구간마다 별도 턴을 쓰는 것은 금지입니다.
+
+**도구 호출 전 계획 수립**
+- 도구를 호출하기 전, 전체 일정의 뼈대(도시 배분, 일차별 권역)를 먼저 결정하세요.
+- 이후 "어떤 도구를 왜 호출해야 하는지" 목록을 판단한 뒤, 가능한 것은 첫 턴에 몰아서 실행하세요.
+- 장소 하나 → 경로 계산 → 다시 장소 → 경로 계산 순의 지그재그 호출은 금지입니다.
+
+**도구 사용 단계 (이 순서로 최소 턴에 처리)**
+1. 첫 번째 턴: 날씨 조회 + RAG 검색을 병렬 실행
+2. 두 번째 턴: 일정 뼈대 확정 후, 모든 일차의 이동 경로를 한꺼번에 calculateRoute 병렬 호출
+3. 추가 조회가 필요한 경우에만 세 번째 턴 사용 (불확실한 입장료·예약 정보 등)
+4. 정보가 충분하면 즉시 JSON 출력
+
+## 출력 형식
+정보가 충분하다고 판단되는 즉시, 추가 설명이나 서술 없이 바로 JSON을 출력하고 종료하세요.
+"이제 일정을 작성하겠습니다" 같은 전환 문장은 쓰지 마세요.
+최종 응답은 설명 없이 순수 JSON만 반환하세요. 마크다운, 코드블록, 주석은 금지합니다.
+각 item에는 실제 장소의 정확한 위도/경도를 넣으세요.
+{
+  "accommodations": [
+    { "name": "숙소명", "location": "위치", "checkIn": "YYYY-MM-DD", "checkOut": "YYYY-MM-DD", "searchQuery": "Hotels.com 검색어" }
+  ],
+  "days": [
+    {
+      "label": "1일차",
+      "theme": "하루 테마",
+      "baseHotel": "해당 일자의 숙소명",
+      "items": [
+        { "time": "09:00", "name": "실제 장소명", "note": "체류 시간·비용·예약 여부·운영 시간 포함", "isMeal": false, "lat": -33.8568, "lng": 151.2153 }
+      ]
+    }
+  ]
+}`;
+
+const COLLAB_JSON_PROMPT = '추가 생각이나 설명 없이, 지금 즉시 최종 여행 일정을 순수 JSON으로만 출력하고 종료하세요. 마크다운, 설명 문장, 코드블록, 전환 문장은 절대 쓰지 마세요.\n{"accommodations":[{"name":"숙소명","location":"위치","checkIn":"YYYY-MM-DD","checkOut":"YYYY-MM-DD","searchQuery":"검색어"}],"days":[{"label":"1일차","theme":"테마","baseHotel":"숙소명","items":[{"time":"09:00","name":"장소명","note":"체류 시간·비용·예약 여부 포함","isMeal":false,"lat":-33.8568,"lng":151.2153}]}]}';
+
+function buildCollabInitialPrompt(params, ragContext = '', weatherSummary = null) {
+  const normalized = normalizePlanParams(params);
+  const {
+    dest,
+    nights,
+    days,
+    startDate,
+    endDate,
+    budget,
+    styles,
+    difficulty,
+    adults,
+    children,
+    mustVisit,
+    hasAccommodation,
+    accommodations,
+  } = normalized;
+
+  const DIFFICULTY_ITEM_COUNTS = {
+    relaxed: '3~4',
+    normal: '4~5',
+    active: '5~6',
+    intense: '6~7',
+  };
+
+  const AU_CITY_NAMES = new Set([
+    '시드니', '멜버른', '골드코스트', '케언즈', '브리즈번', '퍼스', '애들레이드', '울루루',
+    'sydney', 'melbourne', 'gold coast', 'cairns', 'brisbane', 'perth', 'adelaide', 'uluru',
+  ]);
+
+  const mustVisitList = mustVisit
+    ? mustVisit.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+  const cityTargets = mustVisitList.filter(p => AU_CITY_NAMES.has(p.toLowerCase()));
+
+  const multiCitySection = cityTargets.length >= 1
+    ? `\n[반드시 포함할 도시]\n아래 도시들을 일정에 모두 포함하세요. 일수 배분은 동선 효율과 여행 조건에 맞게 자유롭게 결정하세요:\n${cityTargets.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}\n각 도시마다 별도 숙소를 accommodations에 등록하고, 어떤 도시도 생략하지 마세요.`
+    : '';
+
+  const travelers = `성인 ${adults}명${children > 0 ? `, 어린이 ${children}명` : ''}`;
+  const accSection = buildAccommodationSection(hasAccommodation, accommodations);
+  const dateRange = startDate && endDate
+    ? `${startDate} ~ ${endDate} (${nights}박 ${days}일)`
+    : `${nights}박 ${days}일`;
+  const itemCount = DIFFICULTY_ITEM_COUNTS[difficulty] || '4~5';
+
+  const mustVisitLine = mustVisitList.length
+    ? `- 반드시 포함할 장소: ${mustVisitList.join(', ')} (일정 중심이 아니라 포함 보장 — 전체 여행 흐름 안에 자연스럽게 배치)`
+    : '';
+
+  return `${ragContext ? `[호주 RAG 지식 베이스]\n${ragContext}\n\n` : ''}${weatherSummary ? `${weatherSummary}\n\n` : ''}[여행 요청]
+- 목적지: ${dest}
+- 여행 날짜: ${dateRange}
+- 예산: ${BUDGET_LABELS[budget] || budget || '미정'}
+- 여행 스타일: ${styles.join(', ') || '자유'}
+- 여행 강도: ${DIFFICULTY_LABELS[difficulty] || difficulty || '보통'} (하루 ${itemCount}개 장소 기준)
+- 인원: ${travelers}
+${mustVisitLine}${multiCitySection}${accSection}
+
+${weatherSummary ? '위 날씨 데이터를 일정에 반영하세요.' : `먼저 searchRecentInfo로 ${startDate ? startDate.slice(0, 7) : '여행 기간'} ${dest} 날씨를 조회하세요.`}
+도구를 활용해 ${days}일 일정을 만들어 주세요.
+
+일정 설계 순서:
+1. mustVisit 장소가 있다면 각 장소가 어느 도시·권역인지 먼저 파악하세요.
+2. 같은 권역의 장소끼리 같은 날에 묶고, 도시 이동이 필요하면 이동일을 별도로 설정하세요.
+3. 도시별로 숙소를 분리 등록하고 (accommodations 배열), 각 day의 baseHotel을 그 날 머무는 숙소로 설정하세요.
+4. 한 일차 안에 서로 다른 도시의 장소를 절대 섞지 마세요.
+
+각 일차는 숙소 출발로 시작해 숙소 복귀로 마무리하세요.
+모든 식사/카페 항목은 실제 상호명을 사용하고, 각 note에 비용과 예약 여부를 포함하세요.
+accommodations의 checkIn/checkOut 날짜는 반드시 여행 날짜 범위(${startDate || '출발일'} ~ ${endDate || '귀국일'}) 안으로 설정하세요.`;
+}
+
+module.exports = {
+  COLLAB_MAX_AGENT_ITERATIONS,
+  COLLAB_AGENT_SYSTEM,
+  COLLAB_JSON_PROMPT,
+  buildCollabInitialPrompt,
+  buildRagQuery,
+  normalizePlanParams,
+};

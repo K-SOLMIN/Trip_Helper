@@ -20,8 +20,8 @@ export function initAiGenerationInputForm() {
       };
   
       const STEPS = [
-        { icon: "📅", title: "일정", sub: "언제 누구와", required: true, done: () => Boolean(state.startDate && state.endDate && getNights() > 0) },
         { icon: "🌍", title: "여행지", sub: "어디로", required: true, done: () => state.destinations.length > 0 },
+        { icon: "📅", title: "일정", sub: "언제 누구와", required: true, done: () => Boolean(state.startDate && state.endDate && getNights() > 0) },
         { icon: "💰", title: "예산", sub: "여행 밀도", required: false, done: () => false },
         { icon: "⚡", title: "속도", sub: "여행 강도", required: false, done: () => false },
         { icon: "✨", title: "스타일", sub: "선택하면 정교해져요", required: false, done: () => state.styles.length > 0 }
@@ -87,33 +87,33 @@ export function initAiGenerationInputForm() {
         const next = Number(targetStep);
         if (next <= currentStep) return true;
   
-        if (next > 0 && state.travelMode === "group" && adultTeenTotal() < 2) {
+        if (next > 0 && state.destinations.length === 0) {
           currentStep = 0;
           document.querySelectorAll("[data-step-panel]").forEach(panel => {
             panel.classList.toggle("active", Number(panel.dataset.stepPanel) === currentStep);
           });
           validate();
-          showStepWarning(0, "단체는 2인 이상이어야 합니다.");
+          showStepWarning(0, "여행지를 먼저 선택해주세요.");
           return false;
         }
-  
-        if (next > 0 && !(state.startDate && state.endDate && getNights() > 0)) {
-          currentStep = 0;
-          document.querySelectorAll("[data-step-panel]").forEach(panel => {
-            panel.classList.toggle("active", Number(panel.dataset.stepPanel) === currentStep);
-          });
-          validate();
-          showStepWarning(0, "일정을 먼저 입력해주세요.");
-          return false;
-        }
-  
-        if (next > 1 && state.destinations.length === 0) {
+
+        if (next > 1 && state.travelMode === "group" && adultTeenTotal() < 2) {
           currentStep = 1;
           document.querySelectorAll("[data-step-panel]").forEach(panel => {
             panel.classList.toggle("active", Number(panel.dataset.stepPanel) === currentStep);
           });
           validate();
-          showStepWarning(1, "여행지를 먼저 입력해주세요.");
+          showStepWarning(1, "단체는 2인 이상이어야 합니다.");
+          return false;
+        }
+
+        if (next > 1 && !(state.startDate && state.endDate && getNights() > 0)) {
+          currentStep = 1;
+          document.querySelectorAll("[data-step-panel]").forEach(panel => {
+            panel.classList.toggle("active", Number(panel.dataset.stepPanel) === currentStep);
+          });
+          validate();
+          showStepWarning(1, "일정을 먼저 입력해주세요.");
           return false;
         }
   
@@ -430,8 +430,12 @@ export function initAiGenerationInputForm() {
   
       function openCollabConfirmModal() {
         addPendingStyle();
+        if (state.destinations.length === 0) {
+          showStepWarning(0, "함께 작업하기 전에 여행지를 선택해주세요.");
+          return;
+        }
         if (!(state.startDate && state.endDate && getNights() > 0)) {
-          showStepWarning(0, "함께 작업하기 전에 출발일과 귀국일을 입력해주세요.");
+          showStepWarning(1, "함께 작업하기 전에 출발일과 귀국일을 입력해주세요.");
           return;
         }
         setCollabMemberCount(Math.min(20, Math.max(2, adultTeenTotal())));
@@ -494,8 +498,10 @@ export function initAiGenerationInputForm() {
         const ready = requiredDone === 2;
   
         $("submitBtn").disabled = !ready;
-        $("progressFill").style.width = `${(requiredDone / 2) * 100}%`;
-        $("stepMini").innerHTML = [hasDates, hasDestination].map(ok => `<span class="dot ${ok ? "done" : ""}"></span>`).join("");
+        const fill = $("progressFill");
+        fill.style.width = `${(requiredDone / 2) * 100}%`;
+        fill.style.backgroundSize = '420px 100%';
+        $("stepMini").innerHTML = [hasDestination, hasDates].map(ok => `<span class="dot ${ok ? "done" : ""}"></span>`).join("");
   
         const nights = getNights();
         const total = state.adults + state.teens + state.children + state.infants;

@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { generatePlan, chatbot, getUserPlans, getPlanById, deletePlan } = require('../controllers/aiTravelController');
+const { generateCollabPlan } = require('../controllers/collabController');
 const { aiLimiter } = require('../middlewares/rateLimiter');
 const optionalAuth = require('../middlewares/optionalAuth');
 const requireAuth = require('../middlewares/requireAuth');
@@ -73,5 +74,8 @@ router.delete('/ai-travel/plans/:id', requireAuth, deletePlan);
  *         description: 챗봇 응답
  */
 router.post('/ai-travel/chat', aiLimiter, chatbot);
+
+// 공동작업 일정 생성 전용 라우트
+router.post('/ai-travel/generate-collab', aiLimiter, optionalAuth, generateCollabPlan);
 
 module.exports = router;

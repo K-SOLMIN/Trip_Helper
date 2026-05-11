@@ -206,6 +206,7 @@ export function initAiTravelDuration() {
   }
   function formatLocalAmount(amount) {
     const value = Number(amount) || 0;
+    if (!exchangeRate.currency) return value.toLocaleString('ko-KR');
     if (exchangeRate.currency === 'KRW') return formatKrw(value);
     return `${value.toLocaleString('ko-KR')} ${exchangeRate.currency}`;
   }
@@ -305,7 +306,7 @@ export function initAiTravelDuration() {
   let activeTransitStepIdx = null;
   let expenses = [];
   let stopExpenses = {};
-  let exchangeRate = { currency: 'KRW', rateToKrw: 1, cached: true };
+  let exchangeRate = { currency: '', rateToKrw: 1, cached: true };
   let mapReady = false;
   let mapModalOpen = false;
   
@@ -989,13 +990,17 @@ export function initAiTravelDuration() {
 
   function syncCurrencyUi() {
     const amountInput = document.getElementById('expAmt');
-    if (amountInput) amountInput.placeholder = `금액(${exchangeRate.currency})`;
+    if (amountInput) amountInput.placeholder = exchangeRate.currency ? `금액(${exchangeRate.currency})` : '통화 확인 중';
   }
 
   async function loadExchangeRate() {
     try {
-      const query = encodeURIComponent(travelData.destination || '');
-      const data = await apiGet(`/exchange-rate?destination=${query}`);
+      const currency = readGeneratedPlanResult()?.tripInfo?.currency;
+      if (!currency) {
+        syncCurrencyUi();
+        return;
+      }
+      const data = await apiGet(`/exchange-rate?currency=${encodeURIComponent(currency)}`);
       exchangeRate = {
         currency: data.currency || 'KRW',
         rateToKrw: Number(data.rateToKrw) || 1,

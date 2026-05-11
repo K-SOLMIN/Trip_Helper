@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { Check, Copy, Share2 } from 'lucide-react'
 import { BUDGETS, STYLE_SUGGESTIONS } from '../data/AiGenerationInputForm'
 import '../styles/AiCollaborationPlanning.css'
 
@@ -44,6 +45,8 @@ export default function AiCollaborationPlanning() {
   const [connectedCount, setConnectedCount] = useState(1)
   const [connectionState, setConnectionState] = useState('연결 중')
   const [assignedMemberIndex, setAssignedMemberIndex] = useState(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const socketRef = useRef(null)
   const initialPreferencesRef = useRef(preferences)
 
@@ -53,6 +56,12 @@ export default function AiCollaborationPlanning() {
     ? Math.max(0, Math.round((new Date(draft.endDate) - new Date(draft.startDate)) / 86400000))
     : 0
   const completedCount = preferences.filter(p => p.budget && p.styles.length > 0).length
+
+  const copyRoomUrl = async () => {
+    await navigator.clipboard?.writeText(roomUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
 
   const publishPreference = (index, preference) => {
     const socket = socketRef.current
@@ -194,9 +203,33 @@ export default function AiCollaborationPlanning() {
             <h2>개인 취향 수집 보드</h2>
             <p>각자 예산·강도·스타일을 입력하면 AI가 모두 반영해 일정을 생성합니다.</p>
           </div>
-          <button type="button" className="collab-copy-btn" onClick={() => navigator.clipboard?.writeText(roomUrl)}>
-            공유 링크 복사
-          </button>
+          <div className="collab-share-wrap">
+            <button type="button" className="collab-share-btn" onClick={() => setShareOpen(open => !open)}>
+              <Share2 size={16} />
+              <span>공유하기</span>
+            </button>
+            {shareOpen && (
+              <section className="collab-share-popover" aria-label="협업방 공유">
+                <div className="collab-share-tabs">
+                  <button type="button" className="active">링크</button>
+                  <button type="button" disabled>초대</button>
+                </div>
+                <div className="collab-share-content">
+                  <div className="collab-share-title">
+                    <Share2 size={16} />
+                    <strong>협업방 링크</strong>
+                  </div>
+                  <div className="collab-share-url-row">
+                    <input value={roomUrl} readOnly />
+                    <button type="button" onClick={copyRoomUrl} aria-label="공유 링크 복사">
+                      {copied ? <Check size={18} /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                  <p>{copied ? '링크가 복사되었습니다.' : '함께 작업할 사람에게 이 링크를 공유하세요.'}</p>
+                </div>
+              </section>
+            )}
+          </div>
         </header>
 
         <div className="collab-status-bar">

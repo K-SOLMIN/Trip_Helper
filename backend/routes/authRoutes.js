@@ -59,8 +59,17 @@ router.get('/auth/kakao/profile', async (req, res, next) => {
     }
 
     const token = await tokenRes.json();
+    const profileParams = new URLSearchParams({
+      property_keys: JSON.stringify(['properties.nickname', 'kakao_account.profile']),
+    });
+
     const profileRes = await fetch(KAKAO_PROFILE_URL, {
-      headers: { Authorization: `Bearer ${token.access_token}` },
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+      },
+      body: profileParams,
     });
 
     if (!profileRes.ok) {

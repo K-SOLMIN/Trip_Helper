@@ -41,8 +41,17 @@ function SocialAuthRedirect() {
       if (!code) return
 
       const profileParams = new URLSearchParams({ code })
-      const res = await fetch(`${API_BASE}/auth/kakao/profile?${profileParams.toString()}`)
-      if (!res.ok) return
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+      const res = await fetch(`${API_BASE}/auth/kakao/profile?${profileParams.toString()}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!res.ok) {
+        console.error('카카오 프로필 조회 실패:', await res.text())
+        return
+      }
 
       const profile = await res.json()
       if (profile.userName) {
@@ -51,7 +60,7 @@ function SocialAuthRedirect() {
     }
 
     fetchUserName()
-      .catch(() => {})
+      .catch(err => console.error('카카오 로그인 처리 실패:', err))
       .finally(() => navigate('/home', { replace: true }))
   }, [location.search, navigate])
 

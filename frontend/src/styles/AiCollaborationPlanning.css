@@ -236,9 +236,16 @@
   line-height: 1.5;
 }
 
-.collab-copy-btn {
+.collab-share-wrap {
+  position: relative;
   flex-shrink: 0;
+}
+
+.collab-share-btn {
   min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 0 14px;
   border-radius: var(--radius);
   color: #334155;
@@ -247,13 +254,119 @@
   font-size: 12px;
   font-weight: 850;
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.05);
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-.collab-copy-btn:hover {
+.collab-share-btn:hover {
   color: #075985;
   background: #f8fbff;
   border-color: #9cc1ff;
+  transform: translateY(-1px);
+}
+
+.collab-share-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 50;
+  width: min(420px, calc(100vw - 36px));
+  border-radius: var(--radius);
+  background: #0b1118;
+  border: 1px solid #334155;
+  box-shadow: 0 22px 60px rgba(7, 17, 31, 0.28);
+  overflow: hidden;
+}
+
+.collab-share-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid #334155;
+}
+
+.collab-share-tabs button {
+  min-height: 44px;
+  color: #cbd5e1;
+  background: #111821;
+  font-size: 13px;
+  font-weight: 900;
+  border-right: 1px solid #334155;
+}
+
+.collab-share-tabs button:last-child {
+  border-right: 0;
+}
+
+.collab-share-tabs button.active {
+  color: #fff;
+  background: #060b11;
+  box-shadow: inset 0 -2px 0 #ff7b72;
+}
+
+.collab-share-tabs button:disabled {
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.collab-share-content {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.collab-share-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #f8fafc;
+}
+
+.collab-share-title strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.collab-share-url-row {
+  display: grid;
+  grid-template-columns: 1fr 38px;
+  gap: 8px;
+}
+
+.collab-share-url-row input {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid #334155;
+  color: #f8fafc;
+  background: #111821;
+  font-size: 12px;
+  font-weight: 650;
+  outline: 0;
+}
+
+.collab-share-url-row button {
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  color: #cbd5e1;
+  background: #111821;
+  border: 1px solid #334155;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.collab-share-url-row button:hover {
+  color: #fff;
+  background: #17202c;
+  border-color: #64748b;
+}
+
+.collab-share-content p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 650;
 }
 
 /* Status bar */

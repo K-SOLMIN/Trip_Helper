@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { SearchProvider } from './store/SearchContext'
 import MainPage from './pages/MainPage'
 import AiTravelPage from './pages/AiTravelPage'
@@ -20,11 +21,50 @@ import AccommodationDetail from './pages/AccommodationDetail'
 import AccommodationConfirmation from './pages/AccommodationConfirmation'
 import TourTicket from './pages/TourTicket'
 import TourTicketDetail from './pages/TourTicketDetail'
+import { API_BASE } from './api/config'
 
 function LegacyAccommodationRedirect() {
   const location = useLocation()
   const path = location.pathname.replace('/accomodation', '/accommodation')
   return <Navigate to={`${path}${location.search}`} replace />
+}
+
+function SocialAuthRedirect() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const code = params.get('code')
+
+    async function fetchUserName() {
+      if (!code) return
+
+      const profileParams = new URLSearchParams({ code })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+      const res = await fetch(`${API_BASE}/auth/kakao/profile?${profileParams.toString()}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!res.ok) {
+        console.error('카카오 프로필 조회 실패:', await res.text())
+        return
+      }
+
+      const profile = await res.json()
+      if (profile.userName) {
+        localStorage.setItem('tripHelperUserName', profile.userName)
+      }
+    }
+
+    fetchUserName()
+      .catch(err => console.error('카카오 로그인 처리 실패:', err))
+      .finally(() => navigate('/home', { replace: true }))
+  }, [location.search, navigate])
+
+  return null
 }
 
 export default function App() {
@@ -47,6 +87,7 @@ export default function App() {
           <Route path="/confirmation/:orderId" element={<Confirmation />} />
           <Route path="/esim" element={<ESimPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/kakao/callback" element={<SocialAuthRedirect />} />
           <Route path="/accommodation" element={<Accommodation />} />
           <Route path="/accommodation/results" element={<AccSearchResults />} />
           <Route path="/accommodation/confirmation/:bookingRef" element={<AccommodationConfirmation />} />

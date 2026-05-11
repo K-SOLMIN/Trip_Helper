@@ -995,12 +995,12 @@ export function initAiTravelDuration() {
 
   async function loadExchangeRate() {
     try {
-      const currency = readGeneratedPlanResult()?.tripInfo?.currency;
-      if (!currency) {
+      const destination = readGeneratedPlanResult()?.tripInfo?.country || travelData.destination;
+      if (!destination) {
         syncCurrencyUi();
         return;
       }
-      const data = await apiGet(`/exchange-rate?currency=${encodeURIComponent(currency)}`);
+      const data = await apiGet(`/exchange-rate?destination=${encodeURIComponent(destination)}`);
       exchangeRate = {
         currency: data.currency || 'KRW',
         rateToKrw: Number(data.rateToKrw) || 1,

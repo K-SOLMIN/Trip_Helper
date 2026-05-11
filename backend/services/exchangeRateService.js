@@ -1,6 +1,7 @@
 'use strict';
 
 const { requireEnv } = require('../utils/env');
+const { findCountryByDestination } = require('../data/countries');
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const cache = new Map();
@@ -27,10 +28,11 @@ async function fetchRateFromApi(currency) {
   return Number(data.conversion_rate);
 }
 
-async function getExchangeRate({ currency }) {
-  const resolvedCurrency = normalizeCurrency(currency);
+async function getExchangeRate({ destination, currency }) {
+  const country = findCountryByDestination(destination);
+  const resolvedCurrency = country?.currency || normalizeCurrency(currency);
   if (!resolvedCurrency) {
-    const err = new Error('확정된 ISO 4217 통화 코드가 필요합니다.');
+    const err = new Error('지원하는 여행지 또는 ISO 4217 통화 코드가 필요합니다.');
     err.status = 400;
     throw err;
   }
@@ -43,6 +45,8 @@ async function getExchangeRate({ currency }) {
 
   const rateToKrw = await fetchRateFromApi(resolvedCurrency);
   const data = {
+    destination: country?.nameKo || '',
+    countryCode: country?.iso2 || '',
     currency: resolvedCurrency,
     rateToKrw,
     base: resolvedCurrency,

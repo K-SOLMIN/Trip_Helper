@@ -1,6 +1,7 @@
-﻿import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Smartphone, Menu, X } from 'lucide-react'
+import { Smartphone, Menu, X, LogOut, User } from 'lucide-react'
+import { useAuth } from '../../store/AuthContext'
 import CTASection from '../main/CTASection'
 
 const NAV_LINKS = [
@@ -31,18 +32,83 @@ function NavLink({ to, children }) {
   )
 }
 
+function UserMenu() {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleOutside(e) {
+      if (!ref.current?.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
+  const handleLogout = () => {
+    logout()
+    setOpen(false)
+    navigate('/login')
+  }
+
+  if (!user) {
+    return (
+      <button
+        onClick={() => navigate('/login')}
+        className="relative text-sm font-medium text-gray-600 px-3 py-1.5 rounded-lg transition-all duration-200 hover:text-gray-900 hover:bg-gray-50 ml-2"
+      >
+        로그인
+      </button>
+    )
+  }
+
+  return (
+    <div className="relative ml-2" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        <div className="w-7 h-7 bg-sky-500 text-white rounded-full flex items-center justify-center text-sm font-bold select-none">
+          {user.name[0]}
+        </div>
+        <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">{user.name}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-11 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[160px] z-50">
+          <div className="px-4 py-2.5 border-b border-gray-100">
+            <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+            {user.email && (
+              <p className="text-xs text-gray-400 truncate mt-0.5">{user.email}</p>
+            )}
+          </div>
+          <button
+            onClick={() => { setOpen(false); /* 내 정보 페이지 추후 구현 */ }}
+            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <User className="w-4 h-4" />
+            내 정보
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            로그아웃
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const [showStartCard, setShowStartCard] = useState(false)
-  const [userName] = useState(() => {
-    const savedName = localStorage.getItem('tripHelperUserName') || ''
-    if (savedName === '카카오 사용자') {
-      localStorage.removeItem('tripHelperUserName')
-      return ''
-    }
-    return savedName
-  })
 
   const openStartCard = () => {
     setOpen(false)
@@ -67,12 +133,7 @@ export default function Navbar() {
             {NAV_LINKS.map(({ label, to }) => (
               <NavLink key={to} to={to}>{label}</NavLink>
             ))}
-            <button
-              onClick={() => navigate('/login')}
-              className="relative text-sm font-medium text-gray-600 px-3 py-1.5 rounded-lg transition-all duration-200 hover:text-gray-900 hover:bg-gray-50 ml-2"
-            >
-              {userName || '로그인'}
-            </button>
+            <UserMenu />
             <button
               onClick={openStartCard}
               className="ml-3 bg-sky-500 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-md shadow-sky-100 hover:bg-sky-400 hover:shadow-lg hover:shadow-sky-200 hover:scale-[1.03] active:scale-95 transition-all duration-200"
@@ -94,12 +155,35 @@ export default function Navbar() {
             {NAV_LINKS.map(({ label, to }) => (
               <NavLink key={to} to={to}>{label}</NavLink>
             ))}
-            <button
-              onClick={() => navigate('/login')}
-              className="text-left text-sm font-medium text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              {userName || '로그인'}
-            </button>
+            {user ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700">
+                  <div className="w-7 h-7 bg-sky-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    {user.name[0]}
+                  </div>
+                  {user.name}
+                </div>
+                <button
+                  onClick={() => { setOpen(false); /* 내 정보 페이지 추후 구현 */ }}
+                  className="text-left text-sm font-medium text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  내 정보
+                </button>
+                <button
+                  onClick={() => { logout(); setOpen(false); navigate('/login') }}
+                  className="text-left text-sm font-medium text-red-500 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setOpen(false); navigate('/login') }}
+                className="text-left text-sm font-medium text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                로그인
+              </button>
+            )}
             <button
               onClick={openStartCard}
               className="w-full bg-sky-500 text-white text-sm font-semibold py-3 rounded-full mt-2 shadow-md shadow-sky-100 hover:bg-sky-400 hover:shadow-lg transition-all"
@@ -116,4 +200,3 @@ export default function Navbar() {
     </>
   )
 }
-

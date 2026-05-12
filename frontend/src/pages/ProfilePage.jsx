@@ -165,7 +165,7 @@ function EmptyState({ tab }) {
   const config = {
     flights: { icon: '✈️', text: '예약한 항공권이 없습니다', action: '항공권 검색', to: '/flights' },
     stays:   { icon: '🏨', text: '예약한 숙소가 없습니다',   action: '숙소 검색',   to: '/accommodation' },
-    plans:   { icon: '🗺️', text: '저장된 AI 일정이 없습니다', action: 'AI 일정 만들기', to: '/ai-travel' },
+    plans:   { icon: '🗺️', text: '저장된 AI 일정이 없습니다', action: 'AI 일정 만들기', to: '/ai-generation-inputform' },
   }[tab]
 
   return (

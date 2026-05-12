@@ -12,6 +12,10 @@ const {
 } = require('../domains/aiTravel/promptBuilder');
 const { extractJsonObject } = require('../domains/aiTravel/responseParser');
 const { withRetry } = require('./geminiService');
+const {
+  validateAustraliaItinerary,
+  buildItineraryRepairPrompt,
+} = require('./itineraryValidator');
 
 async function getRagContext(params) {
   try {
@@ -74,7 +78,7 @@ function safeSend(chatSession, message) {
   return withRetry(() => chatSession.sendMessage(message));
 }
 
-const JSON_PROMPT = '지금까지 수집한 정보를 바탕으로 최종 여행 일정을 순수 JSON으로만 반환하세요. 마크다운, 설명 문장, 코드블록은 쓰지 마세요.\n{"accommodations":[{"name":"숙소명","location":"위치","checkIn":"YYYY-MM-DD","checkOut":"YYYY-MM-DD","searchQuery":"검색어"}],"days":[{"label":"1일차","theme":"테마","baseHotel":"숙소명","items":[{"time":"09:00","name":"장소명","note":"설명","isMeal":false,"lat":-33.8568,"lng":151.2153}]}]}';
+const JSON_PROMPT = '지금까지 수집한 정보를 바탕으로 최종 여행 일정을 순수 JSON으로만 반환하세요. 마크다운, 설명 문장, 코드블록은 쓰지 마세요. 각 day에는 summary와 routeStrategy를 넣고, 각 item에는 duration, cost, reservation, transportTip, backup을 넣으세요.\n{"accommodations":[{"name":"숙소명","location":"위치","checkIn":"YYYY-MM-DD","checkOut":"YYYY-MM-DD","searchQuery":"검색어"}],"days":[{"label":"1일차","theme":"테마","summary":"오늘 일정 요약","routeStrategy":"동선 설계 이유","baseHotel":"숙소명","items":[{"time":"09:00","name":"장소명","note":"왜 이 장소를 배치했는지와 현장 팁","duration":"약 90분","cost":"무료 또는 예상 비용","reservation":"예약 여부","transportTip":"이전 장소에서 이동 팁","backup":"대체 장소","isMeal":false,"lat":-33.8568,"lng":151.2153}]}]}';
 
 async function resolveFinalText(chatSession, response) {
   const lastParts = response.response.candidates?.[0]?.content?.parts ?? [];
@@ -124,9 +128,19 @@ async function runAgent(params) {
     response = await safeSend(chatSession, toolResults);
   }
 
-  const finalText = await resolveFinalText(chatSession, response);
+  let finalText = await resolveFinalText(chatSession, response);
   console.log('[agentService] finalText preview:', finalText.slice(0, 120));
-  const plan = extractJsonObject(finalText);
+  let plan = extractJsonObject(finalText);
+
+  const routeCheck = validateAustraliaItinerary(plan, params);
+  if (!routeCheck.valid) {
+    console.warn('[agentService] itinerary route violations:', routeCheck.violations.map(v => v.message).join(' | '));
+    const repairResponse = await safeSend(chatSession, buildItineraryRepairPrompt(plan, routeCheck.violations));
+    finalText = await resolveFinalText(chatSession, repairResponse);
+    console.log('[agentService] repaired finalText preview:', finalText.slice(0, 120));
+    plan = extractJsonObject(finalText);
+  }
+
   if (!Array.isArray(plan.days) || plan.days.length === 0) {
     throw new Error('AI가 일정을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.');
   }

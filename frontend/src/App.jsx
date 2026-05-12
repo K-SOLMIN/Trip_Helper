@@ -3,7 +3,6 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation, useNavigate } from
 import { SearchProvider } from './store/SearchContext'
 import { AuthProvider, useAuth } from './store/AuthContext'
 import MainPage from './pages/MainPage'
-import AiTravelPage from './pages/AiTravelPage'
 import AiGenerationInputForm from './pages/AiGenerationInputForm'
 import AiGenerationLoading from './pages/AiGenerationLoading'
 import AiGenerationSchedule from './pages/AiGenerationSchedule'
@@ -80,7 +79,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/home" element={<MainPage />} />
-          <Route path="/ai-travel" element={<AiTravelPage />} />
+          <Route path="/ai-travel" element={<Navigate to="/ai-generation-inputform" replace />} />
           <Route path="/ai-generation-inputform" element={<AiGenerationInputForm />} />
           <Route path="/ai-generation-loading" element={<AiGenerationLoading />} />
           <Route path="/ai-generation-schedule" element={<AiGenerationSchedule />} />

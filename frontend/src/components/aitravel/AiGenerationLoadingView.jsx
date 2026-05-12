@@ -62,6 +62,9 @@ export default function AiGenerationLoadingView({
   progress = 0,
   messageIndex = 0,
   isFinishing = false,
+  error = '',
+  onRetry,
+  onBack,
 }) {
   const bounded = Math.min(100, Math.max(0, progress))
   const activePhase = isFinishing
@@ -71,6 +74,7 @@ export default function AiGenerationLoadingView({
   const facts = buildFacts(trip)
   const chips = buildChips(trip)
   const loadingMessage = LOADING_MESSAGES[messageIndex % LOADING_MESSAGES.length]
+  const hasError = Boolean(error)
 
   return (
     <div className="ai-generation-loading-page">
@@ -95,12 +99,37 @@ export default function AiGenerationLoadingView({
                 <div className="eyebrow">{activePhase}</div>
                 <h1>{trip.isCollab ? '함께 입력한 취향으로' : '입력한 조건으로'}<br />여행 일정을 다듬고 있어요.</h1>
                 <div className="message-wrap" aria-live="polite">
-                  <p
-                    key={messageIndex}
-                    className="loading-message"
-                    dangerouslySetInnerHTML={{ __html: loadingMessage }}
-                  />
+                  {hasError ? (
+                    <p className="loading-message">
+                      일정 생성에 실패했어요.<br />
+                      <span style={{ color: '#fecaca' }}>{error}</span>
+                    </p>
+                  ) : (
+                    <p
+                      key={messageIndex}
+                      className="loading-message"
+                      dangerouslySetInnerHTML={{ __html: loadingMessage }}
+                    />
+                  )}
                 </div>
+                {hasError && (
+                  <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={onBack}
+                      style={{ border: 0, borderRadius: 999, padding: '12px 18px', fontWeight: 800, cursor: 'pointer' }}
+                    >
+                      조건 수정하기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      style={{ border: '1px solid rgba(255,255,255,.35)', borderRadius: 999, padding: '12px 18px', fontWeight: 800, cursor: 'pointer', color: '#fff', background: 'rgba(255,255,255,.12)' }}
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                )}
               </div>
       
               <section className="runway" aria-label="생성 진행률">

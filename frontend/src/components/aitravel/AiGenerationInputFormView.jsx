@@ -5,7 +5,7 @@ export default function AiGenerationInputFormView({ openCalendar, setOpenCalenda
       <main className="shell">
           <aside className="cover">
             <div className="brand">
-              <a className="brand-mark" href="#">
+              <a className="brand-mark" href="/home">
                 <span className="logo-box">✈</span>
                 <span>폰가이즈</span>
               </a>

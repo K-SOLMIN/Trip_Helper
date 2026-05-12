@@ -2,9 +2,23 @@
 
 const { genAI, chatModel, embeddingModel, CHAT_MODEL_NAME } = require('../config/gemini');
 
-const BASE_DELAY_MS = 10_000   // API 힌트 없을 때 기본 10s
-const MAX_DELAY_MS  = 120_000  // 최대 2분
+const BASE_DELAY_MS = 10_000   
+const MAX_DELAY_MS  = 120_000  
 const MAX_RETRIES   = 4
+
+function isDailyQuotaExceeded(err) {
+  const message = String(err.message || '')
+  return /GenerateRequestsPerDay|free_tier_requests|current quota|quota exceeded/i.test(message)
+}
+
+function toQuotaError(err) {
+  const quotaError = new Error(
+    'Gemini 무료 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini API 결제/쿼터 설정을 확인해 주세요.'
+  )
+  quotaError.status = 429
+  quotaError.cause = err
+  return quotaError
+}
 
 async function withRetry(fn, maxRetries = MAX_RETRIES) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -12,6 +26,10 @@ async function withRetry(fn, maxRetries = MAX_RETRIES) {
       return await fn()
     } catch (err) {
       const is429 = err.message?.includes('429') || err.status === 429
+      if (is429 && isDailyQuotaExceeded(err)) {
+        console.warn('[Gemini] 429 — 일일 quota 초과, 재시도하지 않음')
+        throw toQuotaError(err)
+      }
       if (!is429 || attempt === maxRetries) throw err
 
       // API가 제안한 대기 시간 파싱 (있으면 우선 사용)

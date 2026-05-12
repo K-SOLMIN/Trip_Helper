@@ -2,8 +2,13 @@ import { Link, useLocation } from 'react-router-dom'
 import '../../styles/layout.css'
 
 const TABS = [
-  { label: '홈', icon: '🏠', to: '/home' },
-  { label: 'AI 여행', icon: '✨', to: '/ai-travel' },
+  { label: '홈', icon: '🏠', to: '/home', match: pathname => pathname === '/home' || pathname === '/' },
+  {
+    label: 'AI 여행',
+    icon: '✨',
+    to: '/ai-generation-inputform',
+    match: pathname => pathname.startsWith('/ai-generation') || pathname.startsWith('/ai-travel-duration') || pathname.startsWith('/ai-collab'),
+  },
 ]
 
 export default function BottomNav() {
@@ -15,7 +20,7 @@ export default function BottomNav() {
         <Link
           key={tab.to}
           to={tab.to}
-          className={`bottom-nav-item${(tab.to === '/home' ? pathname === '/home' || pathname === '/' : pathname.startsWith(tab.to)) ? ' active' : ''}`}
+          className={`bottom-nav-item${tab.match(pathname) ? ' active' : ''}`}
         >
           <span className="bottom-nav-icon">{tab.icon}</span>
           <span className="bottom-nav-label">{tab.label}</span>

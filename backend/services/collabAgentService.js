@@ -15,6 +15,10 @@ const {
 const { extractJsonObject } = require('../domains/aiTravel/responseParser');
 const { withRetry } = require('./geminiService');
 const { getWeatherForTrip } = require('./weatherService');
+const {
+  validateAustraliaItinerary,
+  buildItineraryRepairPrompt,
+} = require('./itineraryValidator');
 
 const PRICE_RANGE_MAP = {
   low: 'low',
@@ -332,9 +336,20 @@ async function runCollabAgent(params) {
     response = await safeSend(chatSession, toolResults);
   }
 
-  const finalText = await resolveFinalText(chatSession, response);
+  let finalText = await resolveFinalText(chatSession, response);
   console.log('[collabAgentService] finalText preview:', finalText.slice(0, 120));
   let plan = extractJsonObject(finalText);
+
+  const routeCheck = validateAustraliaItinerary(plan, params);
+  if (!routeCheck.valid) {
+    console.warn('[collabAgentService] itinerary route violations:', routeCheck.violations.map(v => v.message).join(' | '));
+    const repairResponse = await safeSend(chatSession, buildItineraryRepairPrompt(plan, routeCheck.violations));
+    finalText = await resolveFinalText(chatSession, repairResponse);
+    console.log('[collabAgentService] repaired finalText preview:', finalText.slice(0, 120));
+    plan = extractJsonObject(finalText);
+  }
+
+
   if (!Array.isArray(plan.days) || plan.days.length === 0) {
     throw new Error('AI가 공동 일정을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.');
   }

@@ -172,12 +172,48 @@ function routeDurationMinutes(routeInfo) {
   return mins || null
 }
 
+function routeDistanceKm(routeInfo) {
+  const text = String(routeInfo?.distance || '').replace(/,/g, '')
+  const km = text.match(/(\d+(?:\.\d+)?)\s*km/i)
+  if (km) return parseFloat(km[1])
+  const meters = text.match(/(\d+(?:\.\d+)?)\s*m\b/i)
+  if (meters) return parseFloat(meters[1]) / 1000
+  return null
+}
+
+function isTransferLikeItem(item = {}) {
+  const text = `${item.name || ''} ${item.note || ''}`.toLowerCase()
+  return /(flight|airport|transfer|train|station|check-?in|check-?out|domestic|terminal|항공|공항|비행|이동|체크인|체크아웃|기차|역)/.test(text)
+}
+
+function shouldSuppressRoute(routeInfo, fromItem, toItem) {
+  if (!routeInfo?.found) return false
+  if (isTransferLikeItem(fromItem) || isTransferLikeItem(toItem)) return false
+  const km = routeDistanceKm(routeInfo)
+  return routeInfo.mode === 'flying' || (km != null && km > 120)
+}
+
 function minsToTime(mins) {
   if (mins == null) return null
   const total = Math.round(mins)
   const h = Math.floor(total / 60) % 24
   const m = total % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function compactItemDetails(item) {
+  return [
+    item.duration ? { label: '체류', value: item.duration } : null,
+    item.cost ? { label: '비용', value: item.cost } : null,
+    item.reservation ? { label: '예약', value: item.reservation } : null,
+  ].filter(Boolean)
+}
+
+function expandedItemDetails(item) {
+  return [
+    item.transportTip ? { label: '이동 팁', value: item.transportTip } : null,
+    item.backup ? { label: '대안', value: item.backup } : null,
+  ].filter(Boolean)
 }
 
 // routeInfos 기반으로 각 항목의 실제 도착 시간 재계산
@@ -754,7 +790,11 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
           .then(info => normalizeRouteInfo(info, item, items[i + 1]))
       })
     ).then(results => {
-        if (!cancelled) setRouteInfos(results)
+        if (!cancelled) {
+          setRouteInfos(results.map((info, i) =>
+            shouldSuppressRoute(info, items[i], items[i + 1]) ? null : info
+          ))
+        }
       })
     return () => { cancelled = true }
   }, [activeDay, routeItems, dest])
@@ -910,6 +950,8 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
                   <div>
                     <p className="module-kicker">{currentDay.label}</p>
                     <h2>{currentDay.theme}</h2>
+                    {currentDay.summary && <p className="day-summary">{currentDay.summary}</p>}
+                    {currentDay.routeStrategy && <p className="route-strategy">동선 전략: {currentDay.routeStrategy}</p>}
                   </div>
                 </header>
                 <div className="time-grid">
@@ -931,6 +973,25 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
                             <span className={`tag${itemType.className}`}>{itemType.label}</span>
                           </div>
                           <p>{item.note}</p>
+                          {compactItemDetails(item).length > 0 && (
+                            <div className="metrics">
+                              {compactItemDetails(item).map(detail => (
+                                <span className="metric" key={`${detail.label}-${detail.value}`}>
+                                  {detail.label}: {detail.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {expandedItemDetails(item).length > 0 && (
+                            <div className="item-extra">
+                              {expandedItemDetails(item).map(detail => (
+                                <p key={detail.label}>
+                                  <strong>{detail.label}</strong>
+                                  <span>{detail.value}</span>
+                                </p>
+                              ))}
+                            </div>
+                          )}
                           {parseNoteStayMins(item.note) && (
                             <span className="stay-duration-badge">
                               ⏱ 체류 약 {(() => {

@@ -263,7 +263,114 @@ export function initAiTravelDuration() {
     },
     album: {
       title:"여행 앨범",
-      html:`<p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">여행 중 저장한 사진과 메모. 종료 후 날짜별 타임라인으로 정리됩니다.</p><div class="mi-album-grid">${['🌇','🏛','🍝','🌊','🎭','🌄'].map(e=>`<div class="mi-album-thumb">${e}</div>`).join('')}</div>`
+      html() {
+        const dayStops = getDayStops(cityData[schedule[activeIdx]?.base]?.stops || [])
+        const currentStop = dayStops[activeStopIdx]
+        const locationName = currentStop?.name || ''
+        const dayNum = String((schedule[activeIdx]?.day) || 1).padStart(2, '0')
+
+        const photoHtml = albumPhoto
+          ? `<div class="mi-album-preview" id="albumPreview">
+               <img src="${albumPhoto}" alt="업로드된 사진">
+               <button class="mi-album-preview-del" id="albumDel" title="삭제">× 사진 삭제</button>
+             </div>`
+          : `<div class="mi-album-drop" id="albumDrop">
+               <input type="file" id="albumFileInput" accept="image/*" style="display:none">
+               <div class="mi-album-drop-icon">📷</div>
+               <div class="mi-album-drop-text">클릭하거나 사진을 드래그하세요</div>
+               <div class="mi-album-drop-hint">JPG · PNG · GIF · HEIC 지원</div>
+             </div>`
+
+        return `
+          ${locationName ? `
+          <div class="mi-album-location-header">
+            <div class="mi-album-location-day">Day ${dayNum}</div>
+            <div class="mi-album-location-name">${locationName}</div>
+          </div>` : ''}
+          <p style="font-size:13px;color:var(--muted);margin:10px 0 12px;line-height:1.6">여행 중 저장한 사진과 메모. 종료 후 날짜별 타임라인으로 정리됩니다.</p>
+          ${photoHtml}
+          <div class="mi-album-memo-wrap">
+            <textarea class="mi-album-memo" id="albumMemo" placeholder="오늘 여행 소감을 간단히 적어보세요..." maxlength="300">${albumMemo}</textarea>
+            <div class="mi-album-memo-counter"><span id="albumMemoCount">${albumMemo.length}</span> / 300</div>
+          </div>
+        `
+      },
+      postOpen() {
+        const memoEl = document.getElementById('albumMemo')
+        const counterEl = document.getElementById('albumMemoCount')
+        if (memoEl) {
+          memoEl.addEventListener('input', () => {
+            albumMemo = memoEl.value
+            if (counterEl) counterEl.textContent = albumMemo.length
+          })
+        }
+
+        // 사진 삭제 버튼
+        const delBtn = document.getElementById('albumDel')
+        if (delBtn) {
+          delBtn.addEventListener('click', () => {
+            albumPhoto = ''
+            document.getElementById('overlay').classList.remove('show')
+            setTimeout(() => openModal('album'), 0)
+          })
+          return
+        }
+
+        // 드롭존 (사진 없을 때만 존재)
+        const drop = document.getElementById('albumDrop')
+        const input = document.getElementById('albumFileInput')
+        if (!drop || !input) return
+
+        drop.addEventListener('click', () => input.click())
+
+        input.addEventListener('change', e => {
+          const file = e.target.files[0]
+          if (file) loadFile(file)
+          input.value = ''
+        })
+
+        drop.addEventListener('dragover', e => {
+          e.preventDefault()
+          drop.classList.add('drag-over')
+        })
+        drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'))
+        drop.addEventListener('drop', e => {
+          e.preventDefault()
+          drop.classList.remove('drag-over')
+          const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'))
+          if (file) loadFile(file)
+        })
+
+        function loadFile(file) {
+          // 미리보기용 base64
+          const reader = new FileReader()
+          reader.onload = ev => { albumPhoto = ev.target.result }
+          reader.readAsDataURL(file)
+
+          // 서버 업로드
+          const apiBase = ((import.meta.env.VITE_API_BASE || '') || '').replace(/\/$/, '')
+          const formData = new FormData()
+          formData.append('photo', file)
+          const token = localStorage.getItem('tripHelperToken')
+          fetch(`${apiBase}/api/memories/upload`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          })
+            .then(r => r.json())
+            .then(data => {
+              albumPhotoUrl = data.url || ''
+              document.getElementById('overlay').classList.remove('show')
+              setTimeout(() => openModal('album'), 0)
+            })
+            .catch(() => {
+              // 업로드 실패해도 base64 미리보기는 유지, 모달 재오픈
+              albumPhotoUrl = ''
+              document.getElementById('overlay').classList.remove('show')
+              setTimeout(() => openModal('album'), 0)
+            })
+        }
+      }
     },
     safety: {
       title:"야간 안전 정보",
@@ -306,6 +413,10 @@ export function initAiTravelDuration() {
   let activeTransitStepIdx = null;
   let expenses = [];
   let stopExpenses = {};
+  let albumPhoto = '';      // base64 미리보기용
+  let albumPhotoUrl = '';   // 서버 저장 후 반환된 URL
+  let albumMemo = '';
+  let activeModalKey = '';
   let exchangeRate = { currency: '', rateToKrw: 1, cached: true };
   let mapReady = false;
   let mapModalOpen = false;
@@ -1066,13 +1177,52 @@ export function initAiTravelDuration() {
   function openModal(key) {
     const d = modalData[key];
     if (!d) return;
+    activeModalKey = key;
     document.getElementById('modalTitle').textContent = d.title;
     document.getElementById('modalContent').innerHTML = typeof d.html === 'function' ? d.html() : d.html;
     document.getElementById('overlay').classList.add('show');
+    if (typeof d.postOpen === 'function') d.postOpen();
   }
-  function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+  function closeModal() {
+    document.getElementById('overlay').classList.remove('show');
+    activeModalKey = '';
+  }
+
+  function saveAlbumMemory() {
+    const token = localStorage.getItem('tripHelperToken')
+    if (!token) { closeModal(); return }  // 비로그인 시 그냥 닫기
+
+    const dayStops = getDayStops(cityData[schedule[activeIdx]?.base]?.stops || [])
+    const currentStop = dayStops[activeStopIdx]
+    const planResult = (() => { try { return JSON.parse(sessionStorage.getItem('aiPlanResult') || '{}') } catch { return {} } })()
+
+    const payload = {
+      photoUrl:     albumPhotoUrl || null,
+      memo:         albumMemo || null,
+      locationName: currentStop?.name || null,
+      dayNum:       schedule[activeIdx]?.day || 1,
+      destination:  travelData.destination || '내 여행',
+      planId:       planResult?.id || null,
+    }
+
+    const apiBase = ((import.meta.env.VITE_API_BASE || '') || '').replace(/\/$/, '')
+    fetch(`${apiBase}/api/memories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.json())
+      .then(() => closeModal())
+      .catch(() => closeModal())
+  }
   document.getElementById('mClose').addEventListener('click', closeModal);
-  document.getElementById('mConfirm').addEventListener('click', closeModal);
+  document.getElementById('mConfirm').addEventListener('click', () => {
+    if (activeModalKey === 'album') {
+      saveAlbumMemory();
+    } else {
+      closeModal();
+    }
+  });
   document.getElementById('overlay').addEventListener('click', e => { if(e.target.id==='overlay') closeModal(); });
   
   function openMapModal() {

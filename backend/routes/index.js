@@ -13,6 +13,7 @@ const authRoutes         = require('./authRoutes');
 const bookingRoutes      = require('./bookingRoutes');
 const exchangeRateRoutes = require('./exchangeRateRoutes');
 const healthRoutes       = require('./healthRoutes');
+const memoryRoutes       = require('./memoryRoutes');
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use(aiTravelRoutes);
 router.use(authRoutes);
 router.use(bookingRoutes);
 router.use(exchangeRateRoutes);
+router.use(memoryRoutes);
 
 module.exports = router;
 

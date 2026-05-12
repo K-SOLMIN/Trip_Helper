@@ -324,7 +324,7 @@ export function initAiTravelDuration() {
     renderCityAccordion();
     renderTL();
     refreshMap();
-    requestDayWalkRoutes();
+    requestSimpleRoute(activeStopIdx, 'walk');
   }
 
   function selectStop(nextIdx) {
@@ -604,8 +604,6 @@ export function initAiTravelDuration() {
         route:stepRoute
       };
     });
-    const transitCount = options.filter(opt => opt.route?.mode === 'TRANSIT').length;
-    if (transitCount === 0) return null;
     options.unshift({
       icon:'💳',
       title:`총 ${leg.duration?.text || '시간 정보 없음'}`,
@@ -613,7 +611,7 @@ export function initAiTravelDuration() {
       time:leg.departure_time?.text || '출발',
       meta:[
         leg.departure_time?.text && leg.arrival_time?.text ? `${leg.departure_time.text} → ${leg.arrival_time.text}` : '',
-        `${transitCount}개 대중교통 구간`
+        `${options.filter(opt => opt.route?.mode === 'TRANSIT').length}개 대중교통 구간`
       ].filter(Boolean),
       route:{
         stepIdx:null,
@@ -654,7 +652,6 @@ export function initAiTravelDuration() {
     const s = schedule[activeIdx];
     const key = modeResultKey(s.day, stopIdx, mode);
     const p = getRouteSegment(s.base, stopIdx);
-    if (routeModeResults[key]) return;
     if (!window.google || !google.maps?.DirectionsService || p.length < 2) return;
     const directionsService = new google.maps.DirectionsService();
     directionsService.route({
@@ -667,32 +664,6 @@ export function initAiTravelDuration() {
       renderTL();
       refreshMap();
     });
-  }
-
-  function requestDayWalkRoutes() {
-    if (!window.google || !google.maps?.DirectionsService) return;
-    const s = schedule[activeIdx];
-    const dayStops = getDayStops(cityData[s.base].stops);
-    dayStops.forEach((_, idx) => requestSimpleRoute(idx, 'walk'));
-  }
-
-  function buildTransitPlaceQuery(name) {
-    const place = cleanPlaceName(name).replace(/\s+/g, ' ').trim();
-    if (!place || /일정 시작|이전 장소/.test(place)) return '';
-    const destination = String(travelData.destination || '').replace(/\s+/g, ' ').trim();
-    return destination && !place.includes(destination) ? `${place}, ${destination}` : place;
-  }
-
-  function getTransitTextEndpoints(stopIdx) {
-    const s = schedule[activeIdx];
-    const dayStops = getDayStops(cityData[s.base].stops);
-    const stop = dayStops[stopIdx];
-    if (!stop) return null;
-    const route = getRouteInfo(dayStops, stop, stopIdx);
-    const origin = buildTransitPlaceQuery(route.origin);
-    const destination = buildTransitPlaceQuery(route.destination);
-    if (!origin || !destination || origin === destination) return null;
-    return { origin, destination };
   }
   
   function requestTransitRoute(stopIdx) {
@@ -710,10 +681,16 @@ export function initAiTravelDuration() {
     transitLoadingKey = key;
     renderTL();
     const directionsService = new google.maps.DirectionsService();
-    const applyTransitResult = (formatted, status) => {
+    directionsService.route({
+      origin:p[0],
+      destination:p[1],
+      travelMode:google.maps.TravelMode.TRANSIT,
+      transitOptions:{ departureTime:new Date() }
+    }, (result, status) => {
       transitLoadingKey = '';
+      const formatted = status === 'OK' && result ? formatTransitResult(result) : null;
       transitResults[key] = formatted || [
-        { icon:'ℹ', title:'대중교통 경로 없음', desc:status === 'OK' ? '이 구간은 Google이 도보 경로만 반환했습니다.' : `이 구간은 Google Transit 응답이 없습니다. 상태: ${status}`, time:'-' }
+        { icon:'ℹ', title:'대중교통 경로 없음', desc:`이 구간은 Google Transit 응답이 없습니다. 상태: ${status}`, time:'-' }
       ];
       const summary = formatted?.[0];
       if (summary) {
@@ -726,32 +703,11 @@ export function initAiTravelDuration() {
           minutes:parseDurationMinutes(summary.title) || 999,
           route:summary.route
         };
-      } else {
-        delete routeModeResults[modeResultKey(s.day, stopIdx, 'transit')];
       }
       openTransitKey = key;
       renderTL();
       refreshMap();
-    };
-    const request = (origin, destination, fallbackOnWalkOnly) => {
-      directionsService.route({
-        origin,
-        destination,
-        travelMode:google.maps.TravelMode.TRANSIT,
-        transitOptions:{ departureTime:new Date() }
-      }, (result, status) => {
-        const formatted = status === 'OK' && result ? formatTransitResult(result) : null;
-        if (!formatted && fallbackOnWalkOnly) {
-          const textEndpoints = getTransitTextEndpoints(stopIdx);
-          if (textEndpoints) {
-            request(textEndpoints.origin, textEndpoints.destination, false);
-            return;
-          }
-        }
-        applyTransitResult(formatted, status);
-      });
-    };
-    request(p[0], p[1], true);
+    });
   }
   
   /* ── 도시 accordion 렌더 ── */
@@ -1252,7 +1208,7 @@ export function initAiTravelDuration() {
   function initMap() {
     if (!window.google) return;
     mapReady = true;
-    requestDayWalkRoutes();
+    requestSimpleRoute(activeStopIdx, 'walk');
     requestSimpleRoute(activeStopIdx, 'taxi');
     renderRouteMap('liveMap');
     if (mapModalOpen) renderRouteMap('modalMap');

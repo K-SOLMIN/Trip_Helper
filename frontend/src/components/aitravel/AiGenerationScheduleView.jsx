@@ -399,21 +399,6 @@ function markerIcon(maps, index) {
   }
 }
 
-function hotelMarkerIcon(maps) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38">
-      <circle cx="19" cy="19" r="17" fill="#0f766e" stroke="#ffffff" stroke-width="3"/>
-      <text x="19" y="17" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.9)">숙소</text>
-      <text x="19" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="900" fill="#fff">H</text>
-    </svg>
-  `
-  return {
-    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new maps.Size(38, 38),
-    anchor: new maps.Point(19, 19),
-  }
-}
-
 function clusterIcon(maps, count) {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
@@ -504,22 +489,6 @@ function drawMarkersForClusters(maps, map, clusters, markersRef, spiderRef) {
   })
 }
 
-function drawHotelMarkers(maps, map, hotelPoints, markersRef) {
-  const seen = new Set()
-  hotelPoints.forEach(point => {
-    const key = `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`
-    if (seen.has(key)) return
-    seen.add(key)
-    markersRef.current.push(new maps.Marker({
-      position: { lat: point.lat, lng: point.lng },
-      map,
-      icon: hotelMarkerIcon(maps),
-      title: point.title,
-      zIndex: 3,
-    }))
-  })
-}
-
 function openSpider(maps, map, center, group, key, spiderRef) {
   clearSpiderOverlays(spiderRef)
   const count = group.length
@@ -594,10 +563,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
   const mapClickListenerRef = useRef(null)
   const idleListenerRef = useRef(null)
   const [useFallback, setUseFallback] = useState(false)
-  const hotelItems = useMemo(
-    () => (routeItems ?? []).filter(item => item.isHotel || getItemType(item).label === '숙소'),
-    [routeItems]
-  )
   const spotItems = useMemo(
     () => (routeItems ?? []).filter(item => !item.isHotel && getItemType(item).label !== '숙소'),
     [routeItems]
@@ -618,8 +583,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
 
         const fixedPoints = spotItems.map(pointFromItem)
         let points = filterOutliers(fixedPoints.filter(Boolean))
-        let hotelPoints = hotelItems.map(pointFromItem).filter(Boolean)
-
         if (points.length < 2) {
           const resolved = await Promise.all(spotItems.map(async item => {
             const point = pointFromItem(item)
@@ -629,15 +592,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
           }))
           if (cancelled) return
           points = filterOutliers(resolved.filter(Boolean))
-        }
-
-        if (hotelPoints.length === 0 && hotelItems.length) {
-          const resolvedHotels = await Promise.all(hotelItems.map(async item => {
-            const position = await geocodePlace(`${item.name}, ${dest}`)
-            return position ? { ...position, title: item.name, time: item.time } : null
-          }))
-          if (cancelled) return
-          hotelPoints = resolvedHotels.filter(Boolean)
         }
 
         if (points.length < 2) {
@@ -669,7 +623,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
         const markerPoints = spreadOverlappingPoints(points)
         const bounds = new maps.LatLngBounds()
         linePoints.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
-        hotelPoints.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
 
         polylineRef.current = new maps.Polyline({
           path: linePoints.map(p => ({ lat: p.lat, lng: p.lng })),
@@ -690,7 +643,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
           clearSpiderOverlays(spiderRef)
           const clusters = computeClusters(map, markerPoints)
           drawMarkersForClusters(maps, map, clusters, markersRef, spiderRef)
-          drawHotelMarkers(maps, map, hotelPoints, markersRef)
         })
 
         map.fitBounds(bounds)
@@ -700,7 +652,7 @@ function RouteMap({ routeItems, activeDay, dest }) {
       })
 
     return () => { cancelled = true }
-  }, [spotItems, hotelItems, activeDay, dest])
+  }, [spotItems, activeDay, dest, routeItems])
 
   useEffect(() => () => {
     clearMapOverlays(markersRef, polylineRef)
@@ -946,7 +898,6 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
             ))}
             <div className="legend">
               <div className="legend-row"><span className="legend-dot"></span>명소/이동</div>
-              <div className="legend-row"><span className="legend-dot hotel"></span>숙소</div>
               <div className="legend-row"><span className="legend-dot transit"></span>공항/이동</div>
               <div className="legend-row"><span className="legend-dot meal"></span>식사</div>
             </div>

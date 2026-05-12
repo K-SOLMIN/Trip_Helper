@@ -706,6 +706,10 @@
     .ai-travel-duration-page .mi-emergency { padding: 11px; border-radius: 11px; background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.2); margin-bottom: 7px; }
     .ai-travel-duration-page .mi-emergency strong { font-size: 15px; font-weight: 900; color: var(--rose); }
     .ai-travel-duration-page .mi-emergency span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .ai-travel-duration-page .mi-muted { color: var(--muted); font-size: 11px; }
+    .ai-travel-duration-page .mi-map-link { color: var(--blue); font-weight: 700; text-decoration: none; }
+    .ai-travel-duration-page .mi-map-link:hover { text-decoration: underline; }
+    .ai-travel-duration-page .mi-map-btn { width: 100%; padding: 10px 14px; border-radius: 999px; background: var(--blue-g); color: #fff; font-size: 13px; font-weight: 800; box-shadow: 0 4px 14px rgba(41,171,226,.24); margin: 2px 0 9px; }
     .ai-travel-duration-page .mi-safe { padding: 11px; border-radius: 11px; background: rgba(11,185,122,.06); border: 1px solid rgba(11,185,122,.2); margin-bottom: 7px; }
     .ai-travel-duration-page .mi-safe strong { font-size: 13px; font-weight: 700; color: var(--green); }
     .ai-travel-duration-page .mi-safe span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }

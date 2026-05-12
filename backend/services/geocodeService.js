@@ -37,22 +37,6 @@ function destinationText(params = {}) {
   return params.country || params.destination || params.dest || params.continent || '';
 }
 
-function distanceKm(a, b) {
-  const lat1 = Number(a?.lat);
-  const lng1 = Number(a?.lng);
-  const lat2 = Number(b?.lat);
-  const lng2 = Number(b?.lng);
-  if (![lat1, lng1, lat2, lng2].every(Number.isFinite)) return Infinity;
-
-  const toRad = value => value * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const sLat1 = toRad(lat1);
-  const sLat2 = toRad(lat2);
-  const h = Math.sin(dLat / 2) ** 2
-    + Math.cos(sLat1) * Math.cos(sLat2) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
 
 function shouldVerifyExistingCoordinates(item) {
   if (!hasCoordinates(item)) return true;
@@ -99,7 +83,6 @@ async function enrichPlanWithCoordinates(plan, params = {}) {
 
   const destination = destinationText(params);
   const cache = new Map();
-  const maxCoordinateDriftKm = 0.75;
 
   const days = await Promise.all(plan.days.map(async day => {
     const items = await Promise.all((day.items || []).map(async item => {
@@ -115,7 +98,6 @@ async function enrichPlanWithCoordinates(plan, params = {}) {
 
       const result = await cache.get(query);
       if (!result) return item;
-      if (hasCoordinates(item) && distanceKm(item, result) <= maxCoordinateDriftKm) return item;
 
       return {
         ...item,

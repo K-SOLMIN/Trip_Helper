@@ -1,16 +1,105 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { Check, Copy, Share2 } from 'lucide-react'
 import { BUDGETS, STYLE_SUGGESTIONS } from '../data/AiGenerationInputForm'
 import '../styles/AiCollaborationPlanning.css'
 
 const MEMBER_COLORS = ['#0f6bff', '#00a676', '#ffb020', '#ef4444', '#7c3aed', '#db2777']
 
-function readDraft() {
+function hasDraftInfo(draft) {
+  return Boolean(draft?.destination || draft?.startDate || draft?.endDate)
+}
+
+function draftFromSearchParams(searchParams) {
+  const places = searchParams.get('places')
+
+  return {
+    destination: searchParams.get('destination') || '',
+    startDate: searchParams.get('startDate') || '',
+    endDate: searchParams.get('endDate') || '',
+    adults: Number(searchParams.get('adults') || 0),
+    teens: Number(searchParams.get('teens') || 0),
+    children: Number(searchParams.get('children') || 0),
+    infants: Number(searchParams.get('infants') || 0),
+    places: places ? places.split(',').map(place => place.trim()).filter(Boolean) : [],
+  }
+}
+
+function readDraft(searchParams) {
+  const sharedDraft = draftFromSearchParams(searchParams)
+  if (hasDraftInfo(sharedDraft)) return sharedDraft
+
   try {
-    return JSON.parse(sessionStorage.getItem('aiTripDraft') || '{}')
+    const stored = JSON.parse(sessionStorage.getItem('aiTripDraft') || '{}')
+    if (hasDraftInfo(stored)) return stored
   } catch {
-    return {}
+    // fall through to empty shared draft
+  }
+
+  return sharedDraft
+}
+
+function buildRoomUrl(roomId, memberCount, draft) {
+  const params = new URLSearchParams({ members: String(memberCount) })
+  ;['destination', 'startDate', 'endDate', 'adults', 'teens', 'children', 'infants'].forEach(key => {
+    const value = draft?.[key]
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
+  })
+  if (Array.isArray(draft?.places) && draft.places.length) {
+    params.set('places', draft.places.join(','))
+  }
+  return `${window.location.origin}/ai-collaboration-planning/${roomId}?${params.toString()}`
+}
+
+const BUDGET_ORDER = ['low', 'mid', 'high']
+
+function intensityToDifficulty(value) {
+  if (value <= 30) return 'relaxed'
+  if (value <= 55) return 'normal'
+  if (value <= 75) return 'active'
+  return 'intense'
+}
+
+function aggregatePreferences(preferences, draft) {
+  const budgets = preferences.map(p => p.budget).filter(Boolean)
+  const avgBudgetIdx = budgets.length
+    ? Math.round(budgets.reduce((sum, b) => sum + BUDGET_ORDER.indexOf(b), 0) / budgets.length)
+    : 1
+  const budget = BUDGET_ORDER[Math.max(0, Math.min(2, avgBudgetIdx))]
+
+  const avgIntensity = Math.round(
+    preferences.reduce((sum, p) => sum + Number(p.intensity ?? 50), 0) / Math.max(1, preferences.length)
+  )
+  const difficulty = intensityToDifficulty(avgIntensity)
+
+  const styles = [...new Set(preferences.flatMap(p => p.styles || []))]
+  const places = [...new Set([
+    ...(Array.isArray(draft.places) ? draft.places : []),
+    ...preferences.flatMap(p => p.places || []),
+  ].map(place => String(place).trim()).filter(Boolean))]
+
+  const nights = draft.startDate && draft.endDate
+    ? Math.max(0, Math.round((new Date(draft.endDate) - new Date(draft.startDate)) / 86400000))
+    : 0
+
+  return {
+    country: draft.destination || '',
+    destination: draft.destination || '',
+    startDate: draft.startDate || '',
+    endDate: draft.endDate || '',
+    nights,
+    budget,
+    styles,
+    difficulty,
+    intensity: `${avgIntensity}/100 평균`,
+    places,
+    adults: Number(draft.adults || 0) + Number(draft.teens || 0),
+    children: Number(draft.children || 0) + Number(draft.infants || 0),
+    mustVisit: places.join(', '),
+    hasAccommodation: draft.hasAccommodation ?? null,
+    accommodations: draft.accommodations || [],
+    isCollab: true,
+    memberCount: preferences.length,
   }
 }
 
@@ -39,7 +128,8 @@ function collaborationWsUrl(roomId, memberCount) {
 export default function AiCollaborationPlanning() {
   const { roomId } = useParams()
   const [searchParams] = useSearchParams()
-  const [draft] = useState(readDraft)
+  const navigate = useNavigate()
+  const [draft, setDraft] = useState(() => readDraft(searchParams))
   const memberCount = Math.min(20, Math.max(2, parseInt(searchParams.get('members') || sessionStorage.getItem('aiCollabMemberCount') || '2', 10) || 2))
   const [preferences, setPreferences] = useState(() => Array.from({ length: memberCount }, (_, i) => createPreference(i)))
   const [connectedCount, setConnectedCount] = useState(1)
@@ -49,13 +139,15 @@ export default function AiCollaborationPlanning() {
   const [copied, setCopied] = useState(false)
   const socketRef = useRef(null)
   const initialPreferencesRef = useRef(preferences)
+  const initialDraftRef = useRef(draft)
 
-  const roomUrl = `${window.location.origin}/ai-collaboration-planning/${roomId}?members=${memberCount}`
+  const roomUrl = buildRoomUrl(roomId, memberCount, draft)
   const travelerCount = (draft.adults || 0) + (draft.teens || 0) + (draft.children || 0) + (draft.infants || 0)
   const nights = draft.startDate && draft.endDate
     ? Math.max(0, Math.round((new Date(draft.endDate) - new Date(draft.startDate)) / 86400000))
     : 0
   const completedCount = preferences.filter(p => p.budget && p.styles.length > 0).length
+  const isHost = assignedMemberIndex === 0
 
   const copyRoomUrl = async () => {
     await navigator.clipboard?.writeText(roomUrl)
@@ -76,7 +168,11 @@ export default function AiCollaborationPlanning() {
 
     socket.addEventListener('open', () => {
       setConnectionState('실시간 연결됨')
-      socket.send(JSON.stringify({ type: 'room_init', preferences: initialPreferencesRef.current }))
+      socket.send(JSON.stringify({
+        type: 'room_init',
+        preferences: initialPreferencesRef.current,
+        draft: initialDraftRef.current,
+      }))
     })
     socket.addEventListener('close', () => setConnectionState('연결 끊김'))
     socket.addEventListener('error', () => setConnectionState('연결 오류'))
@@ -100,13 +196,34 @@ export default function AiCollaborationPlanning() {
         setPreferences(message.preferences)
       }
 
+      if (message.type === 'room_state' && hasDraftInfo(message.draft)) {
+        setDraft(prev => ({ ...prev, ...message.draft }))
+        sessionStorage.setItem('aiTripDraft', JSON.stringify(message.draft))
+      }
+
       if (message.type === 'preference_update' && typeof message.index === 'number' && message.preference) {
         setPreferences(prev => prev.map((item, index) => index === message.index ? message.preference : item))
+      }
+
+      if (message.type === 'generation_started' && message.params) {
+        sessionStorage.setItem('aiCollabParams', JSON.stringify(message.params))
+        sessionStorage.setItem('aiCollabRoomId', roomId)
+        sessionStorage.setItem('aiCollabMemberCount', String(memberCount))
+        sessionStorage.setItem('aiCollabIsHost', 'false')
+        navigate('/ai-collab-loading')
+      }
+
+      if (message.type === 'room_state' && message.generationStarted && message.generatedParams) {
+        sessionStorage.setItem('aiCollabParams', JSON.stringify(message.generatedParams))
+        sessionStorage.setItem('aiCollabRoomId', roomId)
+        sessionStorage.setItem('aiCollabMemberCount', String(memberCount))
+        sessionStorage.setItem('aiCollabIsHost', 'false')
+        navigate('/ai-collab-loading')
       }
     })
 
     return () => socket.close()
-  }, [memberCount, roomId])
+  }, [memberCount, navigate, roomId])
 
   const updatePreference = (index, patch) => {
     if (index !== assignedMemberIndex) return
@@ -150,6 +267,19 @@ export default function AiCollaborationPlanning() {
 
   const removePlace = (index, place) => {
     updatePreference(index, { places: preferences[index].places.filter(p => p !== place) })
+  }
+
+  const handleGeneratePlan = () => {
+    if (!isHost) return
+    const params = aggregatePreferences(preferences, draft)
+    sessionStorage.setItem('aiCollabParams', JSON.stringify(params))
+    sessionStorage.setItem('aiCollabRoomId', roomId)
+    sessionStorage.setItem('aiCollabMemberCount', String(memberCount))
+    sessionStorage.setItem('aiCollabIsHost', 'true')
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'generation_started', params }))
+    }
+    navigate('/ai-collab-loading')
   }
 
   return (
@@ -433,7 +563,19 @@ export default function AiCollaborationPlanning() {
             <strong>{completedCount}/{memberCount}명 취향 입력 완료</strong>
             <span>입력값 합산 후 AI 일정 생성 요청에 전달됩니다.</span>
           </div>
-          <button type="button" className="collab-create-btn">AI 일정 생성 준비</button>
+          <button
+            type="button"
+            className="collab-create-btn"
+            disabled={!isHost || completedCount === 0}
+            onClick={handleGeneratePlan}
+            title={isHost ? undefined : '방장만 AI 일정을 생성할 수 있습니다.'}
+          >
+            {!isHost
+              ? '방장이 일정 생성 가능'
+              : completedCount === memberCount
+                ? 'AI 일정 생성하기'
+                : `AI 일정 생성 준비 (${completedCount}/${memberCount}명 완료)`}
+          </button>
         </footer>
       </main>
     </div>

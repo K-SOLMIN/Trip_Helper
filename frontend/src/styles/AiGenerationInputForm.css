@@ -311,10 +311,11 @@
       gap: 9px;
       padding: 8px 10px;
       border-radius: var(--radius);
+      border: 1px solid transparent;
       color: #64748b;
       background: transparent;
       text-align: left;
-      transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+      transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
     }
 
     .ai-generation-input-form-page .journey-tab:hover {
@@ -323,9 +324,10 @@
     }
 
     .ai-generation-input-form-page .journey-tab.active {
-      color: #fff;
-      background: var(--navy);
-      box-shadow: 0 12px 22px rgba(7, 17, 31, 0.18);
+      color: #063b90;
+      background: #eaf3ff;
+      border-color: #b8d3ff;
+      box-shadow: 0 10px 20px rgba(15, 107, 255, 0.12);
     }
 
     .ai-generation-input-form-page .journey-tab.done {
@@ -334,8 +336,9 @@
     }
 
     .ai-generation-input-form-page .journey-tab.done.active {
-      color: #fff;
-      background: var(--navy);
+      color: #07543f;
+      background: #ddf7eb;
+      border-color: #afe7cf;
     }
 
     .ai-generation-input-form-page .journey-tab span:first-child {
@@ -421,13 +424,24 @@
       position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 10px;
       margin-top: 2px;
     }
 
     .ai-generation-input-form-page .step-actions.end {
       justify-content: flex-end;
+    }
+
+    .ai-generation-input-form-page .step-actions.has-back {
+      justify-content: space-between;
+    }
+
+    .ai-generation-input-form-page .step-action-group {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
     }
 
     .ai-generation-input-form-page .step-warning {
@@ -477,20 +491,23 @@
       padding: 0 18px;
       border-radius: var(--radius);
       color: #fff;
-      background: var(--navy);
+      background: linear-gradient(135deg, var(--brand), #0b56d6);
+      box-shadow: 0 10px 20px rgba(15, 107, 255, 0.2);
       font-size: 13px;
       font-weight: 950;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
     }
 
     .ai-generation-input-form-page .step-action:hover {
       transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(15, 107, 255, 0.24);
     }
 
     .ai-generation-input-form-page .step-action.light {
       color: #475569;
       background: #fff;
       border: 1px solid #dbe3ee;
+      box-shadow: 0 8px 18px rgba(16, 24, 40, 0.05);
     }
 
     .ai-generation-input-form-page .step-action.collab-action {
@@ -527,7 +544,7 @@
 
     .ai-generation-input-form-page .collab-help {
       position: absolute;
-      right: 118px;
+      right: 86px;
       bottom: calc(100% + 12px);
       z-index: 2;
       width: max-content;
@@ -1056,15 +1073,18 @@
       min-height: 48px;
       padding: 0 16px;
       border-radius: var(--radius);
-      color: #fff;
-      background: var(--navy);
+      color: #075985;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
       font-size: 13px;
       font-weight: 950;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
     }
 
     .ai-generation-input-form-page .add-button:hover {
       transform: translateY(-1px);
+      background: #e0f2fe;
+      border-color: #7dd3fc;
     }
 
     .ai-generation-input-form-page .tag {
@@ -1437,7 +1457,8 @@
 
     .ai-generation-input-form-page .confirm-button.primary {
       color: #fff;
-      background: var(--navy);
+      background: linear-gradient(135deg, var(--brand), #0b56d6);
+      box-shadow: 0 10px 20px rgba(15, 107, 255, 0.2);
     }
 
     @media (max-width: 1120px) {

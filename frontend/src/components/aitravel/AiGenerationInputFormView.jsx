@@ -40,9 +40,9 @@ export default function AiGenerationInputFormView({ openCalendar, setOpenCalenda
               <nav className="journey-nav" id="journeyNav" aria-label="여행 입력 단계"></nav>
       
               <form className="form stage" id="tripForm">
-                <section className="step-panel" data-step-panel="1">
+                <section className="step-panel active" data-step-panel="0">
                   <div className="step-hero">
-                    <p>Step 02</p>
+                    <p>Step 01</p>
                     <h3>여행지를 선택해주세요.</h3>
                   </div>
                   <section className="panel">
@@ -81,15 +81,14 @@ export default function AiGenerationInputFormView({ openCalendar, setOpenCalenda
                     </div>
                   </section>
                   <div className="step-actions">
-                    <p className="step-warning" id="step1Warning"></p>
-                    <button className="step-action light" type="button" data-go-step="0">이전</button>
-                    <button className="step-action" type="button" data-go-step="2">예산 선택</button>
+                    <p className="step-warning" id="step0Warning"></p>
+                    <button className="step-action" type="button" data-go-step="1">일정 입력</button>
                   </div>
                 </section>
-      
-                <section className="step-panel active" data-step-panel="0">
+
+                <section className="step-panel" data-step-panel="1">
                   <div className="step-hero">
-                    <p>Step 01</p>
+                    <p>Step 02</p>
                     <h3>일정과 인원을 입력해주세요.</h3>
                   </div>
                   <div className="two-col">
@@ -189,11 +188,14 @@ export default function AiGenerationInputFormView({ openCalendar, setOpenCalenda
                       </div>
                     </section>
                   </div>
-                  <div className="step-actions end">
-                    <p className="step-warning" id="step0Warning"></p>
+                  <div className="step-actions end has-back">
+                    <p className="step-warning" id="step1Warning"></p>
                     <div className="collab-help" id="collabHelp" hidden={true}>동시에 여행 계획을 세울 수 있어요.</div>
-                    <button className="step-action collab-action" id="collabPlanBtn" type="button" hidden={true}>함께 계획하기</button>
-                    <button className="step-action" type="button" data-go-step="1">여행지 입력</button>
+                    <button className="step-action light" type="button" data-go-step="0">이전</button>
+                    <div className="step-action-group">
+                      <button className="step-action collab-action" id="collabPlanBtn" type="button" hidden={true}>함께 계획하기</button>
+                      <button className="step-action" type="button" data-go-step="2">예산 선택</button>
+                    </div>
                   </div>
                 </section>
       

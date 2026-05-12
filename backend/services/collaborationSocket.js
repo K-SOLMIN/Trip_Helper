@@ -17,9 +17,21 @@ function getRoom(roomId) {
       assignments: new Map(),
       memberCount: 2,
       preferences: null,
+      draft: null,
+      generationStarted: false,
+      generatedPlan: null,
+      generatedParams: null,
     });
   }
   return rooms.get(roomId);
+}
+
+function hasDraftInfo(draft) {
+  return Boolean(
+    draft &&
+    typeof draft === 'object' &&
+    (draft.destination || draft.startDate || draft.endDate)
+  );
 }
 
 function assignedIndexes(room) {
@@ -46,6 +58,10 @@ function broadcast(room, payload, except) {
   });
 }
 
+function isHost(room, ws) {
+  return room.assignments.get(ws) === 0;
+}
+
 function attachCollaborationSocket(server) {
   const wss = new WebSocketServer({ server, path: '/ws/collaboration' });
 
@@ -67,6 +83,10 @@ function attachCollaborationSocket(server) {
     send(ws, {
       type: 'room_state',
       preferences: room.preferences,
+      draft: room.draft,
+      generationStarted: room.generationStarted,
+      generatedPlan: room.generatedPlan,
+      generatedParams: room.generatedParams,
       connectedCount: room.clients.size,
       memberIndex,
     });
@@ -76,13 +96,56 @@ function attachCollaborationSocket(server) {
       const message = safeJson(raw);
       if (!message) return;
 
-      if (message.type === 'room_init' && !room.preferences && Array.isArray(message.preferences)) {
-        room.preferences = message.preferences.slice(0, room.memberCount);
+      if (message.type === 'room_init') {
+        let changed = false;
+        if (!room.preferences && Array.isArray(message.preferences)) {
+          room.preferences = message.preferences.slice(0, room.memberCount);
+          changed = true;
+        }
+        if (!room.draft && hasDraftInfo(message.draft)) {
+          room.draft = message.draft;
+          changed = true;
+        }
+
+        if (!changed) return;
+
         broadcast(room, {
           type: 'room_state',
           preferences: room.preferences,
+          draft: room.draft,
           connectedCount: room.clients.size,
         });
+        return;
+      }
+
+      if (message.type === 'generation_started') {
+        if (!isHost(room, ws)) {
+          send(ws, { type: 'update_rejected', reason: 'host only' });
+          return;
+        }
+
+        room.generationStarted = true;
+        room.generatedParams = message.params || null;
+        broadcast(room, {
+          type: 'generation_started',
+          params: room.generatedParams,
+        }, ws);
+        return;
+      }
+
+      if (message.type === 'plan_generated') {
+        if (!isHost(room, ws) && (!room.generationStarted || room.generatedPlan)) {
+          send(ws, { type: 'update_rejected', reason: 'host only' });
+          return;
+        }
+
+        room.generatedPlan = message.planData || null;
+        room.generatedParams = message.params || room.generatedParams;
+        broadcast(room, {
+          type: 'plan_generated',
+          planData: room.generatedPlan,
+          params: room.generatedParams,
+        }, ws);
         return;
       }
 

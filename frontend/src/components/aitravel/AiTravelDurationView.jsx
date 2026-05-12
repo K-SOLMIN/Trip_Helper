@@ -54,7 +54,7 @@ export default function AiTravelDurationView() {
               <button className="tool-pad-btn" data-modal="nearby"><span>＋</span>편의시설</button>
               <button className="tool-pad-btn" data-modal="emergency"><span>🚨</span>긴급</button>
               <button className="tool-pad-btn" data-modal="safety"><span>🛡</span>야간안전</button>
-              <button className="tool-pad-btn" data-modal="album"><span>▧</span>앨범</button>
+              <button className="tool-pad-btn" data-modal="album"><span>▧</span>사진</button>
               <button className="tool-pad-btn" data-modal="hotel"><span>🏨</span>숙소</button>
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function AiTravelDurationView() {
               <span className="map-hd-title">라이브 지도</span>
               <div className="map-hd-actions">
                 <button className="map-icon-btn" data-action="openMapModal" aria-label="지도 확대">⛶</button>
-                <button className="map-hd-btn">경로 안내</button>
+                <button className="map-hd-btn" data-action="routeGuide">경로 안내</button>
               </div>
             </div>
             <div className="map-frame" id="liveMap">

@@ -309,6 +309,44 @@ function validateAccommodationMovement(plan, params, violations) {
   }
 }
 
+function validateSameDayRegionConsistency(plan, violations) {
+  for (const day of plan.days) {
+    const sightseeingItems = (day.items || []).filter(
+      item => hasCoordinates(item) && !isTransferItem(item)
+    );
+    if (sightseeingItems.length < 2) continue;
+
+    const regionVotes = new Map();
+    for (const item of sightseeingItems) {
+      const region = nearestRegion(Number(item.lat), Number(item.lng));
+      if (!region) continue;
+      regionVotes.set(region.key, (regionVotes.get(region.key) || 0) + 1);
+    }
+    if (!regionVotes.size) continue;
+
+    const primaryRegionKey = [...regionVotes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const primaryRegion = AUSTRALIA_REGIONS.find(r => r.key === primaryRegionKey);
+    if (!primaryRegion) continue;
+
+    for (const item of sightseeingItems) {
+      const region = nearestRegion(Number(item.lat), Number(item.lng));
+      if (!region || region.key === primaryRegionKey) continue;
+
+      const kmFromPrimary = haversineKm(
+        primaryRegion.lat, primaryRegion.lng,
+        Number(item.lat), Number(item.lng)
+      );
+      if (kmFromPrimary > REGION_MOVE_KM) {
+        violations.push({
+          day: day.label || day.theme || 'day',
+          type: 'cross_region_items_same_day',
+          message: `${day.label || 'This day'}: "${itemLabel(item)}" is in ${region.label} but the rest of this day's sightseeing is in ${primaryRegion.label} (${formatKm(kmFromPrimary)} apart). All items on the same day must be in the same region. Move "${itemLabel(item)}" to a day when the baseHotel is in ${region.label}.`,
+        });
+      }
+    }
+  }
+}
+
 function validateAustraliaItinerary(plan, params = {}) {
   if (!plan?.days?.length || !looksLikeAustraliaTrip(params, plan)) {
     return { valid: true, violations: [] };
@@ -375,6 +413,7 @@ function validateAustraliaItinerary(plan, params = {}) {
   }
 
   validateAccommodationMovement(plan, params, violations);
+  validateSameDayRegionConsistency(plan, violations);
 
   return { valid: violations.length === 0, violations };
 }
@@ -382,23 +421,19 @@ function validateAustraliaItinerary(plan, params = {}) {
 function buildItineraryRepairPrompt(plan, violations) {
   const summary = violations.map((violation, index) => `${index + 1}. [${violation.day}] ${violation.message}`).join('\n');
 
-  return `The itinerary has unrealistic Australia routing. Fix it and return strict JSON only.
+  return `The itinerary has unrealistic routing. Fix every violation below and return strict JSON only.
 
 Violations:
 ${summary}
 
-Rules for the correction:
-- Do not choose a default city. Use the user's requested places and trip length.
-- Cluster places by region/city first.
-- Keep same-day sightseeing within one region.
-- Any segment over 400km must be a one-way transfer day with arrival accommodation check-in, not a day-trip return.
-- When moving between distant Australian regions, move the accommodation as well. The arrival day and all following local sightseeing days must use a baseHotel in the arrival region.
-- Add a separate accommodations entry for each region/city stay. Its checkIn/checkOut dates must cover the days whose baseHotel uses that accommodation.
-- If a violation says an arrival-region accommodation is missing, add or replace the accommodation for that region and update day.baseHotel to match it.
-- Keep the rich itinerary fields. Each day must include summary and routeStrategy, and each item must include duration, cost, reservation, transportTip, and backup.
-- Replace vague items such as "점심 식사", "자유시간 및 쇼핑", "근처 맛집", "로컬 카페", or "shopping" with real place names in the same region. Meals must use actual restaurant/cafe names.
-- If the trip length cannot include all requested places, move the impossible places to omittedPlaces with reasons.
-- Preserve the existing JSON shape and include includedPlaces and omittedPlaces.
+Correction rules (follow in this order):
+1. SAME-DAY REGION LOCK: Every item on a given day must be in the same city/region as that day's baseHotel. If a violation says an item belongs to a different region, move that item to a day whose baseHotel is in that item's region. Do NOT keep cross-region items on the same day under any circumstance.
+2. TRANSFER DAYS: If moving between distant regions (>400km), dedicate an entire day to the transfer: previous hotel departure → airport/station → flight/train → arrival hotel check-in. No tourist items on a transfer day.
+3. ARRIVAL DAY: The arrival day may only have items in the arrival city. Do not mix arrival-city items with items from a different region.
+4. ACCOMMODATION: Add a separate accommodations[] entry for each distinct region/city stay. checkIn/checkOut must exactly cover the days that use that accommodation as baseHotel.
+5. FIELDS: Keep all itinerary fields (summary, routeStrategy per day; duration, cost, reservation, transportTip, backup per item).
+6. MEALS: Replace any vague meal item ("점심 식사", "근처 맛집", "local cafe") with a real restaurant/cafe name in the same region.
+7. OMISSIONS: If the trip length cannot include all requested places, list them in omittedPlaces with reasons.
 
 Current itinerary JSON:
 ${JSON.stringify(plan)}`;

@@ -11,18 +11,34 @@ const schemaPath = path.join(__dirname, '../models/schema.sql');
 
 async function main() {
   const sql = fs.readFileSync(schemaPath, 'utf8');
+  const database = process.env.MYSQL_DATABASE || 'trip_helper';
+
+  const bootstrap = await mysql.createConnection({
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: Number(process.env.MYSQL_PORT || 3306),
+    user: process.env.MYSQL_USER || 'tripuser',
+    password: process.env.MYSQL_PASSWORD || 'trippassword',
+    multipleStatements: true,
+  });
+
+  try {
+    await bootstrap.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+  } finally {
+    await bootstrap.end();
+  }
+
   const connection = await mysql.createConnection({
     host: process.env.MYSQL_HOST || 'localhost',
     port: Number(process.env.MYSQL_PORT || 3306),
     user: process.env.MYSQL_USER || 'tripuser',
     password: process.env.MYSQL_PASSWORD || 'trippassword',
-    database: process.env.MYSQL_DATABASE || 'trip_helper',
+    database,
     multipleStatements: true,
   });
 
   try {
     await connection.query(sql);
-    console.log(`Database migration complete: ${process.env.MYSQL_DATABASE || 'trip_helper'}`);
+    console.log(`Database migration complete: ${database}`);
   } finally {
     await connection.end();
   }

@@ -141,7 +141,9 @@ router.get('/auth/kakao/profile', async (req, res, next) => {
       body: tokenParams,
     });
     if (!tokenRes.ok) {
-      return res.status(502).json({ error: '카카오 토큰을 가져오지 못했습니다.' });
+      const errBody = await tokenRes.text();
+      console.error('[Kakao] token exchange failed', tokenRes.status, errBody);
+      return res.status(502).json({ error: '카카오 토큰을 가져오지 못했습니다.', detail: errBody });
     }
     const kakaoToken = await tokenRes.json();
 

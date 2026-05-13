@@ -10,7 +10,7 @@ import {
   getCurrentDaySpent, getTodayAvailableBudget, getCategoryBreakdown,
   parseBudgetWon,
   normalizeSavedExpense, fetchSavedExpenses, persistExpense, deleteExpense, fetchExchangeRate,
-  rebudgetPlanDay,
+  rebudgetPlanDay, updatePlanBudget,
   fetchConsulateInfo, fetchEmergencyNearbyInfo, fetchNearbyAmenities, fetchIndoorPlaces, fetchNearbyCafes, fetchDayWeather, buildGoogleMapsRouteUrl,
   requestSimpleRoute, requestTransitRoute, renderRouteMap, renderSafeRouteMap,
   getGeneratedPlanId, readGeneratedPlanResult,
@@ -161,8 +161,12 @@ export default function AiTravelDurationView() {
   const [expAmt,  setExpAmt]        = useState('')
   const [expCat,  setExpCat]        = useState('meal')
   const [catPickerOpen, setCatPickerOpen] = useState(false)
+  const [budgetEditMode, setBudgetEditMode] = useState('total')
+  const [budgetEditValue, setBudgetEditValue] = useState(null)
+  const [budgetSaving, setBudgetSaving] = useState(false)
   const [rebudgeting, setRebudgeting] = useState(false)
   const [selectedAdjustmentIndexes, setSelectedAdjustmentIndexes] = useState([])
+  const [adjustmentInsufficient, setAdjustmentInsufficient] = useState(false)
   const [rebudgetChangelog, setRebudgetChangelog] = useState([])
   const [safetyData,    setSafetyData]    = useState(null)
   const [safetyLoading, setSafetyLoading] = useState(false)
@@ -232,6 +236,9 @@ export default function AiTravelDurationView() {
   }, [dayStops, activeStopIdx, exchangeRate, mustVisitText])
   const remainingAdjustableCost = adjustmentCandidates.reduce((sum, item) => sum + item.estimateWon, 0)
   const budgetRisk = dailyBudgetWon > 0 && remainingAdjustableCost > 0 && todayAvailable < remainingAdjustableCost
+  const budgetShortfall = budgetRisk
+    ? (todayAvailable < 0 ? -todayAvailable : remainingAdjustableCost - todayAvailable)
+    : 0
   const selectedAdjustmentCost = adjustmentCandidates
     .filter(candidate => selectedAdjustmentIndexes.includes(candidate.index))
     .reduce((sum, candidate) => sum + candidate.estimateWon, 0)
@@ -367,6 +374,22 @@ export default function AiTravelDurationView() {
     renderRouteMap('liveMap', state)
   }, [mapReady, travelData]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 하루 전체 정류장 택시·대중교통 선조회 ────────────────────
+  useEffect(() => {
+    if (!mapReady || !travelData || !day) return
+    const state = { schedule, activeIdx, cityData }
+    dayStops.forEach((_, i) => {
+      if (i === 0) return
+      requestSimpleRoute(i, 'taxi', state, (key, result) => {
+        setRouteModeResults(prev => ({ ...prev, [key]: result }))
+      })
+      requestTransitRoute(i, { schedule, activeIdx, cityData, day: day.day }, ({ transitKey, transitResult, routeKey, routeValue }) => {
+        setTransitResults(prev => ({ ...prev, [transitKey]: transitResult }))
+        if (routeKey && routeValue) setRouteModeResults(prev => ({ ...prev, [routeKey]: routeValue }))
+      })
+    })
+  }, [mapReady, travelData, activeIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── 지출 입력창 자동 채우기 ────────────────────────────────
   useEffect(() => {
     const stop = dayStops[activeStopIdx]
@@ -385,14 +408,54 @@ export default function AiTravelDurationView() {
       return
     }
 
-    const nonMustVisitCandidates = adjustmentCandidates.filter(candidate => !candidate.mustVisit)
-    const recommendedPool = nonMustVisitCandidates.length ? nonMustVisitCandidates : adjustmentCandidates
-    const recommended = [...recommendedPool]
-      .sort((a, b) => b.estimateWon - a.estimateWon)
-      .slice(0, 2)
-      .map(candidate => candidate.index)
-    setSelectedAdjustmentIndexes(recommended)
-  }, [budgetRisk, adjustmentCandidates])
+    // 커버해야 할 부족분: 이미 초과됐으면 초과액, 아직 초과 전이면 남은 일정비 - 가용예산
+    const shortfall = todayAvailable < 0
+      ? -todayAvailable
+      : remainingAdjustableCost - todayAvailable
+
+    const greedySelect = (pool) => {
+      const sorted = [...pool].sort((a, b) => b.estimateWon - a.estimateWon)
+      let accumulated = 0
+      const indexes = []
+      for (const candidate of sorted) {
+        indexes.push(candidate.index)
+        accumulated += candidate.estimateWon
+        if (accumulated >= shortfall) return { indexes, covered: true }
+      }
+      return { indexes, covered: false }
+    }
+
+    const nonMustVisit = adjustmentCandidates.filter(c => !c.mustVisit)
+    const mustVisit    = adjustmentCandidates.filter(c => c.mustVisit)
+
+    // 1차: non-mustVisit으로 시도
+    const first = greedySelect(nonMustVisit.length ? nonMustVisit : adjustmentCandidates)
+    if (first.covered) {
+      setAdjustmentInsufficient(false)
+      setSelectedAdjustmentIndexes(first.indexes)
+      return
+    }
+
+    // 2차: non-mustVisit 전부 + mustVisit 추가 시도
+    if (nonMustVisit.length && mustVisit.length) {
+      const allSorted = [...adjustmentCandidates].sort((a, b) => b.estimateWon - a.estimateWon)
+      let accumulated = 0
+      const indexes = []
+      for (const candidate of allSorted) {
+        indexes.push(candidate.index)
+        accumulated += candidate.estimateWon
+        if (accumulated >= shortfall) break
+      }
+      const covered = accumulated >= shortfall
+      setAdjustmentInsufficient(!covered)
+      setSelectedAdjustmentIndexes(indexes)
+      return
+    }
+
+    // 아무리 해도 커버 불가
+    setAdjustmentInsufficient(!first.covered)
+    setSelectedAdjustmentIndexes(first.indexes)
+  }, [budgetRisk, adjustmentCandidates, todayAvailable, remainingAdjustableCost])
 
   // ── 구간 이동 시 안전 뱃지 자동 분석 (백그라운드) ────────────
   useEffect(() => {
@@ -556,6 +619,45 @@ export default function AiTravelDurationView() {
       setRebudgeting(false)
     }
   }, [activeIdx, activeStopIdx, selectedAdjustmentIndexes, selectedAdjustmentCost, todayAvailable, remainingAdjustableCost, showToast])
+
+  const handleBudgetSave = useCallback(async () => {
+    const nights = schedule.length
+    const inputWon = Math.round(parseFloat(budgetEditValue) * 10000)
+    if (!inputWon || inputWon <= 0) {
+      showToast('⚠', '금액을 입력해주세요', '0보다 큰 금액을 입력해야 합니다.', 'warn')
+      return
+    }
+    const newTotal = budgetEditMode === 'daily' ? inputWon * (nights || 1) : inputWon
+    if (newTotal > 100_000_000) {
+      const maxMan = budgetEditMode === 'daily'
+        ? Math.floor(10000 / (nights || 1)).toLocaleString()
+        : '10,000'
+      showToast('⚠', '예산이 너무 큽니다', `최대 ${maxMan}만원(1억)까지 입력 가능합니다.`, 'warn')
+      return
+    }
+
+    setBudgetSaving(true)
+    try {
+      const planId = getGeneratedPlanId(readGeneratedPlanResult())
+      if (planId) await updatePlanBudget(planId, newTotal)
+
+      setTravelData(prev => ({ ...prev, totalBudgetWon: newTotal }))
+      const planResult = readGeneratedPlanResult()
+      if (planResult) {
+        sessionStorage.setItem('aiPlanResult', JSON.stringify({
+          ...planResult,
+          tripInfo: { ...(planResult.tripInfo || {}), budget: String(newTotal) },
+        }))
+      }
+      setBudgetEditValue(null)
+      showToast('✓', '예산 업데이트 완료', `총 예산이 ${Math.round(newTotal / 10000).toLocaleString()}만원으로 변경되었습니다.`, 'ok')
+    } catch {
+      showToast('!', '저장 실패', '예산 저장에 실패했습니다. 다시 시도해주세요.', 'warn')
+    } finally {
+      setBudgetSaving(false)
+    }
+  }, [budgetEditMode, budgetEditValue, schedule, showToast])
+
 
   // ── 액션 핸들러 ───────────────────────────────────────────
   const handle = useCallback(async (action) => {
@@ -1049,9 +1151,9 @@ export default function AiTravelDurationView() {
                 <h2>실시간 지출 관리</h2>
               </div>
               <div className="budget-head-summary">
-                <div className="budget-head-card">
-                  <span>오늘 사용 가능</span>
-                  <strong>{total ? formatExpense(todayAvailable) : '예산 미설정'}</strong>
+                <div className={`budget-head-card${total && todayAvailable < 0 ? ' budget-head-card--over' : ''}`}>
+                  <span>{total && todayAvailable < 0 ? '오늘 예산 초과' : '오늘 사용 가능'}</span>
+                  <strong>{total ? formatExpense(Math.abs(todayAvailable)) : '예산 미설정'}</strong>
                 </div>
                 <div className="budget-head-card">
                   <span>오늘 환율</span>
@@ -1065,6 +1167,68 @@ export default function AiTravelDurationView() {
             </div>
             <div className="sec-body">
               <div className="budget-cols">
+                <div className="b-block budget-edit-block">
+                  <div className="budget-edit-summary">
+                    <div className="budget-edit-summary-left">
+                      <span className="budget-edit-label">예산 충당</span>
+                      <span className="budget-edit-amount">{total ? formatKrw(total) : '미설정'}</span>
+                      {total > 0 && schedule.length > 0 && (
+                        <span className="budget-edit-daily-hint">· 하루 {formatKrw(Math.round(total / schedule.length))}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={`budget-edit-toggle${budgetEditValue !== null ? ' open' : ''}`}
+                      onClick={() => setBudgetEditValue(prev => prev === null ? '' : null)}
+                    >
+                      {budgetEditValue !== null ? '닫기' : '예산 충당하기'}
+                    </button>
+                  </div>
+                  <div className={`budget-edit-panel${budgetEditValue !== null ? ' open' : ''}`}>
+                    <div className="budget-edit-inner">
+                      <div className="budget-edit-mode-toggle">
+                        <button
+                          type="button"
+                          className={`bet-tab${budgetEditMode === 'total' ? ' active' : ''}`}
+                          onClick={() => setBudgetEditMode('total')}
+                        >총 예산</button>
+                        <button
+                          type="button"
+                          className={`bet-tab${budgetEditMode === 'daily' ? ' active' : ''}`}
+                          onClick={() => setBudgetEditMode('daily')}
+                        >하루 예산</button>
+                      </div>
+                      <div className="budget-edit-row">
+                        <div className="budget-edit-input-wrap">
+                          <input
+                            className="budget-edit-input"
+                            type="number"
+                            min="1"
+                            max={budgetEditMode === 'daily' ? Math.floor(10000 / (schedule.length || 1)) : 10000}
+                            placeholder={budgetEditMode === 'total' ? '총 예산 입력 (최대 10,000만원)' : '하루 예산 입력'}
+                            value={budgetEditValue || ''}
+                            onChange={e => setBudgetEditValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleBudgetSave() }}
+                          />
+                          <span className="budget-edit-unit">만원</span>
+                        </div>
+                        {budgetEditMode === 'daily' && budgetEditValue && schedule.length > 0 && (
+                          <div className="budget-edit-calc">
+                            총 {formatKrw(Math.round(parseFloat(budgetEditValue || 0) * 10000) * schedule.length)}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          className="budget-edit-save"
+                          disabled={!budgetEditValue || budgetSaving}
+                          onClick={handleBudgetSave}
+                        >
+                          {budgetSaving ? '저장 중' : '저장'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="b-block">
                   <div className="b-block-title">카테고리별 지출 비중</div>
                   <div>
@@ -1087,17 +1251,10 @@ export default function AiTravelDurationView() {
                 {budgetRisk && (
                   <div className="b-block budget-adjust-panel">
                     <div className="budget-adjust-head">
-                      <div>
-                        <div className="b-block-title">예산 맞춤 조정 후보</div>
-                        <p>남은 예산으로 오늘 일정 소화가 어려워요. 저녁 식사를 저가 옵션으로 바꾸거나 쇼핑 일정을 줄이는 걸 추천합니다.</p>
-                      </div>
-                      <div className="budget-adjust-actions">
-                        <strong>{formatExpense(selectedAdjustmentCost || remainingAdjustableCost)}</strong>
-                        <button type="button" onClick={handleRebudgetDay} disabled={rebudgeting || selectedAdjustmentIndexes.length === 0}>
-                          {rebudgeting ? '재조정 중' : '일정 재조정'}
-                        </button>
-                      </div>
+                      <div className="b-block-title">예산 맞춤 조정 후보</div>
+                      <strong className="budget-adjust-total">{formatExpense(selectedAdjustmentCost)}</strong>
                     </div>
+                    <p className="budget-adjust-desc">남은 예산으로 오늘 일정 소화가 어려워요. 저녁 식사를 저가 옵션으로 바꾸거나 쇼핑 일정을 줄이는 걸 추천합니다.</p>
                     <div className="budget-adjust-list">
                       {adjustmentCandidates.map(candidate => (
                         <label key={`${candidate.index}-${candidate.stop.name}`} className={`budget-adjust-item${selectedAdjustmentIndexes.includes(candidate.index) ? ' selected' : ''}`}>
@@ -1114,9 +1271,12 @@ export default function AiTravelDurationView() {
                           <div>
                             <div className="budget-adjust-item-title">
                               <strong>{candidate.stop.name}</strong>
-                              <span className={`budget-adjust-badge${candidate.mustVisit ? ' keep' : ''}`}>
-                                {candidate.mustVisit ? '유지 권장' : '조정 추천'}
-                              </span>
+                              {candidate.mustVisit
+                                ? <span className="budget-adjust-badge keep">유지 권장</span>
+                                : budgetShortfall > 0 && candidate.estimateWon >= budgetShortfall * 0.5
+                                  ? <span className="budget-adjust-badge">조정 추천</span>
+                                  : null
+                              }
                             </div>
                             <span>{candidate.suggestion}</span>
                           </div>
@@ -1139,6 +1299,16 @@ export default function AiTravelDurationView() {
                         ))}
                       </div>
                     )}
+                    {adjustmentInsufficient && (
+                      <div className="budget-adjust-warning">
+                        남은 일정을 모두 조정해도 예산 초과를 완전히 해소하기 어렵습니다. 예산을 늘려주세요.
+                      </div>
+                    )}
+                    <div className="budget-adjust-footer">
+                      <button type="button" onClick={handleRebudgetDay} disabled={rebudgeting || selectedAdjustmentIndexes.length === 0}>
+                        {rebudgeting ? '재조정 중' : '일정 재조정'}
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div className="b-block exp-block">
@@ -1836,20 +2006,60 @@ function ModalContent({
   )
 
   if (modalKey === 'budget') return (
-    <div>
-      <div className="mi-row"><strong>총 지출</strong><span style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--gold)' }}>{formatExpense(spent)} / {total ? formatKrw(total) : '예산 미설정'}</span></div>
-      <div className="mi-row"><strong>예산 소진율</strong><span>{pct}%</span></div>
-      <div className="mi-row"><strong>남은 예산</strong><span style={{ color: 'var(--green)' }}>{total ? formatExpense(remaining) : '예산을 선택하지 않음'}</span></div>
-      <div className="mi-row"><strong>카테고리 비중</strong><span>전체 지출 기준</span></div>
-      {categoryBreakdown.length > 0
-        ? categoryBreakdown.map(cat => (
-            <div key={cat.key} className="mi-row">
-              <strong>{cat.icon} {cat.label}</strong>
-              <span>{formatExpense(cat.amount)} · {cat.pct}%</span>
+    <div className="bm-wrap">
+      <div className="bm-hero">
+        <span className="bm-hero-label">총 지출</span>
+        <div className="bm-hero-amounts">
+          <strong className="bm-hero-spent">{formatExpense(spent)}</strong>
+          {total > 0 && <span className="bm-hero-total">/ {formatKrw(total)}</span>}
+        </div>
+        {total > 0 && (
+          <div className="bm-progress-wrap">
+            <div className="bm-progress-track">
+              <div className="bm-progress-fill" style={{
+                width: `${pct}%`,
+                background: pct >= 90 ? 'var(--rose)' : pct >= 70 ? 'var(--amber)' : 'var(--green)',
+              }} />
             </div>
-          ))
-        : <div className="mi-row"><strong>지출 내역</strong><span>아직 없음</span></div>
-      }
+            <span className="bm-progress-pct">{pct}%</span>
+          </div>
+        )}
+      </div>
+
+      <div className="bm-stats">
+        <div className="bm-stat-card">
+          <span>남은 예산</span>
+          <strong style={{ color: remaining > 0 ? 'var(--green)' : 'var(--muted)' }}>
+            {total ? formatKrw(remaining) : '미설정'}
+          </strong>
+        </div>
+        <div className="bm-stat-card">
+          <span>소진율</span>
+          <strong>{total ? `${pct}%` : '—'}</strong>
+        </div>
+      </div>
+
+      <div className="bm-cats">
+        <p className="bm-cats-title">카테고리별 지출</p>
+        {categoryBreakdown.length > 0 && categoryBreakdown.some(c => c.amount > 0)
+          ? categoryBreakdown.map(cat => (
+              <div key={cat.key} className="bm-cat-row">
+                <span className="bm-cat-icon">{cat.icon}</span>
+                <div className="bm-cat-info">
+                  <div className="bm-cat-top">
+                    <span className="bm-cat-name">{cat.label}</span>
+                    <span className="bm-cat-amount">{formatExpense(cat.amount)}</span>
+                  </div>
+                  <div className="bm-cat-track">
+                    <div className="bm-cat-fill" style={{ width: `${cat.pct}%`, background: cat.color }} />
+                  </div>
+                </div>
+                <span className="bm-cat-pct">{cat.pct}%</span>
+              </div>
+            ))
+          : <p className="bm-cats-empty">아직 지출 내역이 없습니다.</p>
+        }
+      </div>
     </div>
   )
 

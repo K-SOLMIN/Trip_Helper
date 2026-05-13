@@ -473,6 +473,28 @@ async function deletePlanExpense(req, res, next) {
   }
 }
 
+async function updatePlanBudget(req, res, next) {
+  try {
+    const planId = Number(req.params.id);
+    if (!Number.isInteger(planId) || planId <= 0) {
+      return res.status(400).json({ error: '유효하지 않은 요청입니다.' });
+    }
+    const totalBudgetWon = Number(req.body.totalBudgetWon);
+    if (!Number.isFinite(totalBudgetWon) || totalBudgetWon <= 0) {
+      return res.status(400).json({ error: '유효하지 않은 예산입니다.' });
+    }
+
+    const plan = await getOwnedPlan(planId, req.user.id);
+    if (!plan) return res.status(404).json({ error: '일정을 찾을 수 없습니다.' });
+
+    await pool.query('UPDATE travel_plans SET budget = ? WHERE id = ?', [String(totalBudgetWon), planId]);
+
+    res.json({ success: true, totalBudgetWon });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function rebudgetPlanDay(req, res, next) {
   try {
     const planId = Number(req.params.id);
@@ -622,6 +644,24 @@ async function rebudgetPlanDay(req, res, next) {
       : null;
 
     function buildForcedItem(original, candidate, note) {
+      const isFree = candidate.priceLevel === 'PRICE_LEVEL_FREE';
+      let newCost;
+      if (isFree) {
+        newCost = '무료';
+      } else if (perItemBudgetKrw > 0) {
+        // 할당 예산의 60%를 상한선으로 설정
+        newCost = `₩${Math.round(perItemBudgetKrw * 0.6).toLocaleString('ko-KR')}`;
+      } else {
+        // 예산이 이미 초과된 경우: 원본 비용의 현지 금액 기준으로 할인율 적용
+        const origNum = extractMaxNumber(original.cost);
+        const discount = candidate.priceLevel === 'PRICE_LEVEL_INEXPENSIVE' ? 0.25 : 0.4;
+        const estimatedKrw = origNum != null && exchangeRateToKrw > 0
+          ? Math.round(origNum * discount * exchangeRateToKrw)
+          : null;
+        newCost = estimatedKrw != null
+          ? `₩${estimatedKrw.toLocaleString('ko-KR')}`
+          : '무료';
+      }
       return {
         ...original,
         name:  candidate.name,
@@ -632,6 +672,7 @@ async function rebudgetPlanDay(req, res, next) {
         kind:  original.kind,
         isMeal: original.isMeal,
         time:  original.time,
+        cost:  newCost,
       };
     }
 
@@ -824,6 +865,7 @@ module.exports = {
   createPlanExpense,
   updatePlanExpense,
   deletePlanExpense,
+  updatePlanBudget,
   rebudgetPlanDay,
   translateText,
 };

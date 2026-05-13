@@ -10,6 +10,7 @@ import {
   getCurrentDaySpent, getTodayAvailableBudget, getCategoryBreakdown,
   parseBudgetWon,
   normalizeSavedExpense, fetchSavedExpenses, persistExpense, fetchExchangeRate,
+  rebudgetPlanDay,
   fetchConsulateInfo, fetchEmergencyNearbyInfo, fetchNearbyAmenities, buildGoogleMapsRouteUrl,
   requestSimpleRoute, requestTransitRoute, renderRouteMap, renderSafeRouteMap,
   getGeneratedPlanId, readGeneratedPlanResult,
@@ -108,6 +109,19 @@ function adjustmentText(category) {
   return '무료 전망·산책 코스 또는 저가 입장 옵션으로 대체'
 }
 
+function mustVisitTextFromResult(result) {
+  return result?.tripInfo?.mustVisit || (Array.isArray(result?.tripInfo?.places) ? result.tripInfo.places.join(', ') : '')
+}
+
+function isMustVisitStop(stop, mustVisitText) {
+  const name = String(stop?.name || '').toLowerCase()
+  return String(mustVisitText || '')
+    .split(',')
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean)
+    .some(item => name.includes(item) || item.includes(name))
+}
+
 export default function AiTravelDurationView() {
   // ── 데이터 상태 ────────────────────────────────────────────
   const [travelData,  setTravelData]  = useState(null)
@@ -138,9 +152,11 @@ export default function AiTravelDurationView() {
   const [expName, setExpName]       = useState('')
   const [expAmt,  setExpAmt]        = useState('')
   const [expCat,  setExpCat]        = useState('meal')
+  const [rebudgeting, setRebudgeting] = useState(false)
+  const [selectedAdjustmentIndexes, setSelectedAdjustmentIndexes] = useState([])
   const [safetyData,    setSafetyData]    = useState(null)
   const [safetyLoading, setSafetyLoading] = useState(false)
-  const [safetyBadge,   setSafetyBadge]   = useState(null) // { level, label } — 구간 이동 시 자동 분석 결과
+  const [safetyBadge,   setSafetyBadge]   = useState(null)
   const safetyAbortRef = useRef(null)
 
   const toastTimerRef        = useRef(null)
@@ -157,7 +173,10 @@ export default function AiTravelDurationView() {
 
   const day             = schedule[activeIdx]
   const currentCityData = cityData[day?.base]
-  const dayStops        = currentCityData ? getDayStops(currentCityData.stops || []) : []
+  const dayStops        = useMemo(
+    () => currentCityData ? getDayStops(currentCityData.stops || []) : [],
+    [currentCityData]
+  )
   const statusLabel     = day?.today ? 'LIVE' : day?.done ? 'DONE' : 'UPCOMING'
 
   const currentDayNumber  = getCurrentDayNumber(schedule, activeIdx)
@@ -168,6 +187,7 @@ export default function AiTravelDurationView() {
   const todayAvailable    = getTodayAvailableBudget(total, expenses, schedule, activeIdx)
   const categoryBreakdown = getCategoryBreakdown(expenses, schedule, activeIdx)
   const budgetPct         = dailyBudgetWon > 0 ? Math.min(100, (currentDaySpent / dailyBudgetWon) * 100) : 0
+  const mustVisitText     = mustVisitTextFromResult(readGeneratedPlanResult())
   const adjustmentCandidates = useMemo(() => {
     return dayStops
       .slice(activeStopIdx + 1)
@@ -180,13 +200,17 @@ export default function AiTravelDurationView() {
           category,
           estimateWon,
           index: activeStopIdx + 1 + offset,
+          mustVisit: isMustVisitStop(stop, mustVisitText),
           suggestion: adjustmentText(category),
         }
       })
       .filter(Boolean)
-  }, [dayStops, activeStopIdx, exchangeRate])
+  }, [dayStops, activeStopIdx, exchangeRate, mustVisitText])
   const remainingAdjustableCost = adjustmentCandidates.reduce((sum, item) => sum + item.estimateWon, 0)
   const budgetRisk = dailyBudgetWon > 0 && remainingAdjustableCost > 0 && todayAvailable < remainingAdjustableCost
+  const selectedAdjustmentCost = adjustmentCandidates
+    .filter(candidate => selectedAdjustmentIndexes.includes(candidate.index))
+    .reduce((sum, candidate) => sum + candidate.estimateWon, 0)
 
   const fatigueRingCirc   = 2 * Math.PI * 24
   const fatigueRingOffset = fatigueRingCirc - (fatigueVal / 10) * fatigueRingCirc
@@ -290,6 +314,21 @@ export default function AiTravelDurationView() {
     }
   }, [activeIdx, activeStopIdx]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!budgetRisk || adjustmentCandidates.length === 0) {
+      setSelectedAdjustmentIndexes([])
+      return
+    }
+
+    const nonMustVisitCandidates = adjustmentCandidates.filter(candidate => !candidate.mustVisit)
+    const recommendedPool = nonMustVisitCandidates.length ? nonMustVisitCandidates : adjustmentCandidates
+    const recommended = [...recommendedPool]
+      .sort((a, b) => b.estimateWon - a.estimateWon)
+      .slice(0, 2)
+      .map(candidate => candidate.index)
+    setSelectedAdjustmentIndexes(recommended)
+  }, [budgetRisk, adjustmentCandidates])
+
   // ── 구간 이동 시 안전 뱃지 자동 분석 (백그라운드) ────────────
   useEffect(() => {
     const stop = dayStops[activeStopIdx]
@@ -310,10 +349,7 @@ export default function AiTravelDurationView() {
         const icon = data.level === 'warn' ? '⚠️' : data.level === 'caution' ? '🔶' : '✅'
         const label = data.level === 'warn' ? '위험 구간' : data.level === 'caution' ? '주의 구간' : '안전 구간'
         setSafetyBadge({ level: data.level, icon, label, desc: data.safeRouteDesc })
-        setRouteCard(prev => ({
-          ...prev,
-          title: `${icon} ${label}: ${stop.name || '현재 구간'}`,
-        }))
+        setRouteCard(prev => ({ ...prev, title: `${icon} ${label}: ${stop.name || '현재 구간'}` }))
       })
       .catch(() => {})
 
@@ -378,6 +414,43 @@ export default function AiTravelDurationView() {
       showToast('✓', `${formatLocalAmount(amountLocal)} 입력됨`, msg, 'ok')
     }
   }, [expName, expAmt, expCat, localToKrw, total, totalSpent, currentDayNumber, activeStopIdx, exchangeRate, dayStops, showToast, formatLocalAmount, formatExpense, todayAvailable])
+
+  const handleRebudgetDay = useCallback(async () => {
+    const planResult = readGeneratedPlanResult()
+    const planId = getGeneratedPlanId(planResult)
+    if (!planId) {
+      showToast('!', '재조정 불가', '로그인 상태에서 저장된 일정만 재조정할 수 있습니다.', 'warn')
+      return
+    }
+
+    setRebudgeting(true)
+    try {
+      const result = await rebudgetPlanDay(planId, {
+        dayIndex: activeIdx,
+        activeItemIndex: activeStopIdx,
+        selectedItemIndexes: selectedAdjustmentIndexes,
+        remainingBudgetWon: todayAvailable,
+        remainingCostWon: selectedAdjustmentCost || remainingAdjustableCost,
+        mustVisit: mustVisitTextFromResult(planResult),
+      })
+
+      if (result?.planData) {
+        sessionStorage.setItem('aiPlanResult', JSON.stringify({
+          ...planResult,
+          planData: result.planData,
+          planId,
+        }))
+        const nextTravelData = await buildGeneratedTravelData()
+        if (nextTravelData) setTravelData(nextTravelData)
+        setActiveStopIdx(Math.min(activeStopIdx, result.day?.items?.length ? result.day.items.length - 1 : activeStopIdx))
+      }
+      showToast('✓', '예산 맞춤 재조정 완료', result?.summary || '오늘 남은 일정이 예산에 맞게 조정되었습니다.', 'ok')
+    } catch (err) {
+      showToast('!', '재조정 실패', err.message || '일정 재조정에 실패했습니다.', 'warn')
+    } finally {
+      setRebudgeting(false)
+    }
+  }, [activeIdx, activeStopIdx, selectedAdjustmentIndexes, selectedAdjustmentCost, todayAvailable, remainingAdjustableCost, showToast])
 
   // ── 액션 핸들러 ───────────────────────────────────────────
   const handle = useCallback(async (action) => {
@@ -531,7 +604,7 @@ export default function AiTravelDurationView() {
       {/* TOPBAR */}
       <header className="topbar">
         <div className="topbar-in">
-          <a className="brand" href="#"><span className="brand-icon">📱</span>Trip Helper</a>
+          <a className="brand" href="/home"><span className="brand-icon">✈</span><span>폰가이즈</span></a>
           <div className="topbar-trip">
             <strong>{travelData.destination} 여행</strong>
             <span className="sep">›</span>
@@ -845,17 +918,36 @@ export default function AiTravelDurationView() {
                         <div className="b-block-title">예산 맞춤 조정 후보</div>
                         <p>남은 예산으로 오늘 일정 소화가 어려워요. 저녁 식사를 저가 옵션으로 바꾸거나 쇼핑 일정을 줄이는 걸 추천합니다.</p>
                       </div>
-                      <strong>{formatExpense(remainingAdjustableCost)}</strong>
+                      <div className="budget-adjust-actions">
+                        <strong>{formatExpense(selectedAdjustmentCost || remainingAdjustableCost)}</strong>
+                        <button type="button" onClick={handleRebudgetDay} disabled={rebudgeting || selectedAdjustmentIndexes.length === 0}>
+                          {rebudgeting ? '재조정 중' : '일정 재조정'}
+                        </button>
+                      </div>
                     </div>
                     <div className="budget-adjust-list">
-                      {adjustmentCandidates.slice(0, 4).map(candidate => (
-                        <div key={`${candidate.index}-${candidate.stop.name}`} className="budget-adjust-item">
+                      {adjustmentCandidates.map(candidate => (
+                        <label key={`${candidate.index}-${candidate.stop.name}`} className={`budget-adjust-item${selectedAdjustmentIndexes.includes(candidate.index) ? ' selected' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedAdjustmentIndexes.includes(candidate.index)}
+                            onChange={event => {
+                              setSelectedAdjustmentIndexes(prev => event.target.checked
+                                ? [...new Set([...prev, candidate.index])]
+                                : prev.filter(index => index !== candidate.index))
+                            }}
+                          />
                           <div>
-                            <strong>{candidate.stop.name}</strong>
+                            <div className="budget-adjust-item-title">
+                              <strong>{candidate.stop.name}</strong>
+                              <span className={`budget-adjust-badge${candidate.mustVisit ? ' keep' : ''}`}>
+                                {candidate.mustVisit ? '유지 권장' : '조정 추천'}
+                              </span>
+                            </div>
                             <span>{candidate.suggestion}</span>
                           </div>
                           <em>{formatExpense(candidate.estimateWon)}</em>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/AiGenerationLoading.css'
 import AiGenerationLoadingView from '../components/aitravel/AiGenerationLoadingView'
-import { apiPost } from '../api/apiClient'
+import { API_BASE } from '../api/config'
 import { DEFAULT_TRIP, LOADING_MESSAGES } from '../data/AiGenerationLoading'
 
 const DIFFICULTY_MAP = { '여유': 'relaxed', '여유롭게': 'relaxed', '보통': 'normal', '활동적': 'active', '빡빡': 'intense' }
@@ -59,6 +59,7 @@ export default function AiGenerationLoading() {
   const navigate = useNavigate()
   const calledRef = useRef(false)
   const [progress, setProgress] = useState(6)
+  const [serverMessage, setServerMessage] = useState('')
   const [messageIndex, setMessageIndex] = useState(0)
   const [isFinishing, setIsFinishing] = useState(false)
   const [error, setError] = useState('')
@@ -68,19 +69,7 @@ export default function AiGenerationLoading() {
     const messageTimer = setInterval(() => {
       setMessageIndex(prev => (prev + 1) % LOADING_MESSAGES.length)
     }, 4000)
-
-    const progressTimer = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 98) return 98
-        const step = prev < 72 ? 7 : prev < 90 ? 3.5 : 1
-        return Math.min(98, prev + step + Math.random() * 3)
-      })
-    }, 950)
-
-    return () => {
-      clearInterval(messageTimer)
-      clearInterval(progressTimer)
-    }
+    return () => clearInterval(messageTimer)
   }, [])
 
   useEffect(() => {
@@ -88,31 +77,88 @@ export default function AiGenerationLoading() {
     calledRef.current = true
 
     const params = buildApiParams(trip)
-    let cancelled = false
     sessionStorage.removeItem('aiPlanResult')
 
-    apiPost('/ai-travel/generate', params)
-      .then(json => {
-        if (cancelled) return
-        if (json?.data) {
-          sessionStorage.setItem('aiPlanResult', JSON.stringify({ planData: json.data, tripInfo: params, planId: json.planId || null }))
+    const token = localStorage.getItem('tripHelperToken')
+    const abortController = new AbortController()
+
+    const startStreaming = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/ai-travel/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(params),
+          signal: abortController.signal,
+        })
+
+        if (!response.ok) {
+          const errJson = await response.json().catch(() => ({}))
+          throw new Error(errJson.error || '일정 생성 요청에 실패했습니다.')
         }
-        setIsFinishing(true)
-        setProgress(100)
-        setTimeout(() => navigate('/ai-generation-schedule'), 650)
-      })
-      .catch(err => {
-        if (cancelled) return
-        setError(err.message || '일정 생성에 실패했습니다.')
-        setProgress(prev => Math.min(prev, 98))
-      })
-    return () => { cancelled = true }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const json = JSON.parse(line.substring(6))
+                
+                if (json.error) {
+                  setError(json.error)
+                  break
+                }
+
+                if (json.progress !== undefined) {
+                  setProgress(json.progress)
+                }
+                if (json.message) {
+                  setServerMessage(json.message)
+                }
+
+                if (json.step === 'COMPLETED' && json.data) {
+                  sessionStorage.setItem('aiPlanResult', JSON.stringify({ 
+                    planData: json.data, 
+                    tripInfo: params, 
+                    planId: json.planId || null 
+                  }))
+                  setIsFinishing(true)
+                  setProgress(100)
+                  setTimeout(() => navigate('/ai-generation-schedule'), 650)
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE line:', line, e)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setError(err.message || '일정 생성 중 오류가 발생했습니다.')
+        }
+      }
+    }
+
+    startStreaming()
+    return () => abortController.abort()
   }, [navigate, trip])
 
   return (
     <AiGenerationLoadingView
       trip={trip}
       progress={progress}
+      serverMessage={serverMessage}
       messageIndex={messageIndex}
       isFinishing={isFinishing}
       error={error}

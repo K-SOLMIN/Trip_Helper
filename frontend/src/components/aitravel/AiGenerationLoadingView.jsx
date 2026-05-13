@@ -61,6 +61,7 @@ export default function AiGenerationLoadingView({
   trip = DEFAULT_TRIP,
   progress = 0,
   messageIndex = 0,
+  serverMessage = '',
   isFinishing = false,
   error = '',
   onRetry,
@@ -73,7 +74,7 @@ export default function AiGenerationLoadingView({
   const activeStage = Math.min(STAGE_LABELS.length - 1, Math.floor(bounded / 25))
   const facts = buildFacts(trip)
   const chips = buildChips(trip)
-  const loadingMessage = LOADING_MESSAGES[messageIndex % LOADING_MESSAGES.length]
+  const loadingMessage = serverMessage || LOADING_MESSAGES[messageIndex % LOADING_MESSAGES.length]
   const hasError = Boolean(error)
 
   return (

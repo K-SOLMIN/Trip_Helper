@@ -14,6 +14,7 @@ const DESTINATIONS = [
 ]
 
 const KAKAO_AUTH_URL = `${API_BASE}/auth/kakao/start`
+const GOOGLE_AUTH_URL = `${API_BASE}/auth/google/start`
 
 function Seagull({ style }) {
   return (
@@ -282,7 +283,7 @@ export default function LoginPage() {
               </a>
 
               {/* 구글 — light glass */}
-              <a href="https://accounts.google.com/o/oauth2/v2/auth?client_id=615729581192-5us3n1of7mgnl6ns1ok91t45lctt0fcl.apps.googleusercontent.com&redirect_uri=http://localhost:5173/auth/google/callback&response_type=code&scope=email profile">
+              <a href={GOOGLE_AUTH_URL}>
               <button
                 type="button" className="social-btn"
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, background: 'rgba(255,255,255,.45)', border: '1.5px solid rgba(14,116,144,.2)', borderRadius: 12, padding: '11px 0', color: '#1a4a5e', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 10px rgba(0,40,80,.08)' }}

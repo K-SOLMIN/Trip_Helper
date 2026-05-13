@@ -97,6 +97,10 @@ router.get('/auth/me', async (req, res) => {
 const KAKAO_AUTH_URL = 'https://kauth.kakao.com/oauth/authorize';
 const KAKAO_TOKEN_URL = 'https://kauth.kakao.com/oauth/token';
 const KAKAO_PROFILE_URL = 'https://kapi.kakao.com/v2/user/me';
+const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_PROFILE_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
+
 
 function getKakaoClientId() {
   return (process.env.KAKAO_CLIENT_ID || '').trim();
@@ -108,6 +112,18 @@ function getFrontendUrl() {
 
 function getKakaoRedirectUri() {
   return process.env.KAKAO_REDIRECT_URI || `${getFrontendUrl()}/auth/kakao/callback`;
+}
+
+function getGoogleClientId() {
+  return (process.env.GOOGLE_CLIENT_ID || '').trim();
+}
+
+function getGoogleClientSecret() {
+  return (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+}
+
+function getGoogleRedirectUri() {
+  return process.env.GOOGLE_REDIRECT_URI || `${getFrontendUrl()}/auth/google/callback`;
 }
 
 router.get('/auth/kakao/start', (req, res) => {
@@ -123,8 +139,30 @@ router.get('/auth/kakao/start', (req, res) => {
     client_id: clientId,
     redirect_uri: getKakaoRedirectUri(),
     response_type: 'code',
+    prompt: 'login'
   });
   res.redirect(`${KAKAO_AUTH_URL}?${params.toString()}`);
+});
+
+router.get('/auth/google/start', (req, res) => {
+  const clientId = getGoogleClientId();
+
+  if (!clientId) {
+    return res.status(500).json({
+      error: 'Google login is not configured.',
+      detail: 'Set GOOGLE_CLIENT_ID in backend/.env.',
+    });
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: getGoogleRedirectUri(),
+    response_type: 'code',
+    scope: 'openid email profile',
+    prompt: 'select_account',
+  });
+
+  res.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
 });
 
 router.get('/auth/kakao/profile', async (req, res, next) => {
@@ -215,6 +253,109 @@ router.get('/auth/kakao/profile', async (req, res, next) => {
     }
 
     const user = { id: dbUser.id, email: dbUser.email, name: dbUser.name, provider: 'kakao' };
+    res.json({ token: signToken(user), user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/auth/google/profile', async (req, res, next) => {
+  try {
+    const { code } = req.query;
+    const clientId = getGoogleClientId();
+    const clientSecret = getGoogleClientSecret();
+
+    if (!code) {
+      return res.status(400).json({ error: 'Google authorization code is missing.' });
+    }
+
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({
+        error: 'Google login is not configured.',
+        detail: 'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env.',
+      });
+    }
+
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: getGoogleRedirectUri(),
+      code,
+    });
+
+    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams,
+    });
+
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      console.error('[Google] token exchange failed', tokenRes.status, errBody);
+      return res.status(502).json({
+        error: 'Failed to exchange Google authorization code for an access token.',
+        detail: errBody,
+        hint: 'Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.',
+        redirectUri: getGoogleRedirectUri(),
+      });
+    }
+
+    const googleToken = await tokenRes.json();
+
+    const profileRes = await fetch(GOOGLE_PROFILE_URL, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${googleToken.access_token}`,
+      },
+    });
+
+    if (!profileRes.ok) {
+      const errBody = await profileRes.text();
+      console.error('[Google] profile fetch failed', profileRes.status, errBody);
+      return res.status(502).json({
+        error: 'Failed to fetch Google profile.',
+        detail: errBody,
+      });
+    }
+
+    const profile = await profileRes.json();
+
+    const googleId = String(profile.id);
+    const email = profile.email || null;
+    const nickname = profile.name || 'Google User';
+
+    let [rows] = await pool.query(
+      'SELECT * FROM users WHERE provider = ? AND provider_id = ?',
+      ['google', googleId]
+    );
+
+    let dbUser;
+
+    if (rows.length > 0) {
+      dbUser = rows[0];
+    } else {
+      const [result] = await pool.query(
+        'INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)',
+        [email, nickname, 'google', googleId]
+      );
+
+      dbUser = {
+        id: result.insertId,
+        email,
+        name: nickname,
+        provider: 'google',
+        provider_id: googleId,
+      };
+    }
+
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      provider: 'google',
+    };
+
     res.json({ token: signToken(user), user });
   } catch (err) {
     next(err);

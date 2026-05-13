@@ -9,6 +9,7 @@ const {
   createPlanExpense,
   updatePlanExpense,
   deletePlanExpense,
+  translateText,
 } = require('../controllers/aiTravelController');
 const { generateCollabPlan } = require('../controllers/collabController');
 const { aiLimiter } = require('../middlewares/rateLimiter');
@@ -91,5 +92,8 @@ router.post('/ai-travel/chat', aiLimiter, chatbot);
 
 // 공동작업 일정 생성 전용 라우트
 router.post('/ai-travel/generate-collab', aiLimiter, optionalAuth, generateCollabPlan);
+
+// 실시간 번역
+router.post('/translate', aiLimiter, translateText);
 
 module.exports = router;

@@ -57,6 +57,9 @@ export function heroImageForDestination(destination) {
   return found?.[1] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1800&q=80'
 }
 
+// 여행 예산으로 비현실적인 값(10억 초과)은 0으로 처리
+const MAX_BUDGET_WON = 1_000_000_000
+
 export function parseBudgetWon(value) {
   const text = String(value ?? '').trim().replace(/,/g, '')
   if (!text) return 0
@@ -70,9 +73,10 @@ export function parseBudgetWon(value) {
     const m = compact.match(u.pattern)
     return m ? sum + Number(m[1]) * u.multiplier : sum
   }, 0)
-  if (unitTotal > 0) return Math.round(unitTotal)
+  if (unitTotal > 0) return unitTotal > MAX_BUDGET_WON ? 0 : Math.round(unitTotal)
   const number = Number(compact.replace(/[^\d.]/g, ''))
-  return Number.isFinite(number) ? Math.round(number) : 0
+  if (!Number.isFinite(number)) return 0
+  return number > MAX_BUDGET_WON ? 0 : Math.round(number)
 }
 
 export function haversineMeters(a, b) {

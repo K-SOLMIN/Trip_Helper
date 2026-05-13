@@ -134,11 +134,28 @@ async function getOwnedPlan(planId, userId) {
 }
 
 async function generatePlan(req, res, next) {
+  const isSSE = req.headers.accept === 'text/event-stream';
+
+  if (isSSE) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+  }
+
+  const sendProgress = (data) => {
+    if (isSSE) {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+  };
+
   try {
-    const ragService = require('../services/ragService');
-    const plan = await ragService.generateTravelPlan(req.body);
+    const { runAgent } = require('../services/agentService');
+    const plan = await runAgent(req.body, sendProgress);
     const ragDebug = plan.ragDebug || null;
     delete plan.ragDebug;
+    
+    sendProgress({ step: 'GEOCODING', progress: 95, message: '장소 위치 정보 확인 중...' });
     const enriched = await enrichPlanWithCoordinates(plan, req.body);
     const data = sanitizeAustraliaItinerary(enriched, req.body);
 
@@ -154,14 +171,26 @@ async function generatePlan(req, res, next) {
       savedPlanId = result.insertId;
     }
 
-    res.json({
+    const finalResponse = {
       success: true,
       data,
       planId: savedPlanId,
       ...(req.body.includeDebug ? { debug: { rag: ragDebug } } : {}),
-    });
+    };
+
+    if (isSSE) {
+      res.write(`data: ${JSON.stringify({ step: 'COMPLETED', progress: 100, ...finalResponse })}\n\n`);
+      res.end();
+    } else {
+      res.json(finalResponse);
+    }
   } catch (err) {
-    next(err);
+    if (isSSE) {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    } else {
+      next(err);
+    }
   }
 }
 

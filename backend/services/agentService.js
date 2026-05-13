@@ -125,12 +125,14 @@ async function resolveFinalText(chatSession, response) {
   return safeText(fallback2);
 }
 
-async function runAgent(params) {
+async function runAgent(params, onProgress = () => {}) {
+  onProgress({ step: 'RAG', progress: 15, message: '현지 여행 정보 검색 중...' });
   const ragResult = await getRagContext(params);
   const ragContext = typeof ragResult === 'string' ? ragResult : ragResult.context;
   const ragDebug = typeof ragResult === 'string' ? null : ragResult.meta;
   const initialPrompt = buildInitialPrompt(params, ragContext);
 
+  onProgress({ step: 'AI_START', progress: 35, message: 'AI 일정 설계 시작...' });
   const model = genAI.getGenerativeModel({
     model: CHAT_MODEL_NAME,
     systemInstruction: AGENT_SYSTEM,
@@ -144,10 +146,12 @@ async function runAgent(params) {
     const toolCalls = getToolCalls(response);
     if (!toolCalls.length) break;
 
+    onProgress({ step: 'TOOL_CALL', progress: 35 + (iteration + 1) * 10, message: '세부 정보 확인 및 동선 최적화 중...' });
     const toolResults = await executeToolCalls(toolCalls);
     response = await safeSend(chatSession, toolResults);
   }
 
+  onProgress({ step: 'FINALIZING', progress: 75, message: '상세 일정 정리 및 완성 중...' });
   let finalText = await resolveFinalText(chatSession, response);
   console.log('[agentService] finalText preview:', finalText?.slice(0, 120));
   if (!finalText || !finalText.includes('{')) {
@@ -155,6 +159,7 @@ async function runAgent(params) {
   }
   let plan = extractJsonObject(finalText);
 
+  onProgress({ step: 'VALIDATION', progress: 90, message: '최종 동선 및 제약 사항 검증 중...' });
   for (let repairAttempt = 1; repairAttempt <= 2; repairAttempt++) {
     const routeCheck = validateAustraliaItinerary(plan, params);
     if (routeCheck.valid) break;

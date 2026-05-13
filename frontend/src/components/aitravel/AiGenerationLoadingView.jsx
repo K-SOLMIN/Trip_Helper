@@ -1,4 +1,24 @@
 import { DEFAULT_TRIP, LOADING_MESSAGES, LOADING_PHASES, STAGE_LABELS } from '../../data/AiGenerationLoading'
+import { parseBudgetWon } from '../../utils/AiTravelDuration'
+
+function formatBudgetWon(won) {
+  if (!won || won <= 0) return null
+  if (won >= 100000000) {
+    const eok = Math.floor(won / 100000000)
+    const man = Math.round((won % 100000000) / 10000)
+    return man > 0 ? `${eok}억 ${man}만원` : `${eok}억원`
+  }
+  return `${Math.round(won / 10000)}만원`
+}
+
+function budgetDisplay(trip) {
+  const raw = trip.budget || trip.budgetText || ''
+  if (!raw) return '선택 안 함'
+  if (!trip.isCollab) return raw
+  const total = parseBudgetWon(raw)
+  const formatted = formatBudgetWon(total)
+  return formatted ? `합산 ${formatted}` : raw
+}
 
 function dateText(value) {
   if (!value) return ''
@@ -38,7 +58,7 @@ function buildFacts(trip) {
   return [
     ['여행 기간', `${dateText(trip.startDate)} ~ ${dateText(trip.endDate)} · ${trip.nights || 0}박 ${days}일`],
     ['인원', travelerText(trip)],
-    ['예산', trip.budget || '선택 안 함'],
+    ['예산', budgetDisplay(trip)],
     [trip.isCollab ? '평균 여행 강도' : '여행 강도', trip.intensity || '선택 안 함'],
     ['고정 장소', listText(places)],
     ['스타일', listText((trip.styles || []).map(style => `#${style}`))],

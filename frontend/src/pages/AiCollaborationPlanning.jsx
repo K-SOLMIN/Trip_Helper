@@ -313,7 +313,7 @@ export default function AiCollaborationPlanning() {
                       ? '✓ 입력 완료'
                       : member.budget || member.styles.length
                         ? '입력 중'
-                        : '대기 중'}
+                        : i < connectedCount ? '입장' : '대기 중'}
                   </small>
                 </div>
                 {member.budget && member.styles.length > 0 && (
@@ -418,7 +418,7 @@ export default function AiCollaborationPlanning() {
 
                 <div className="collab-field">
                   <div className="collab-field-header">
-                    <strong>개인 예산</strong>
+                    <strong>개인 총 예산</strong>
                     <small>항공권 제외 총 예산</small>
                   </div>
                   <input

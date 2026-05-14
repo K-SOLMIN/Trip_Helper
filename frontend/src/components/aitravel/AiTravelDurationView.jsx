@@ -1,6 +1,8 @@
 // AiTravelDurationView.jsx - 여행 일정 메인 뷰 (상태·렌더링 통합 React 컴포넌트)
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { apiPost, apiGet } from "../../api/apiClient";
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import TeachersDayEgg from './TeachersDayEgg'
+import { Camera, Dumbbell, Hotel, Languages, MapPin, Shield, Siren, Wallet } from 'lucide-react'
+import { apiPost, apiGet } from '../../api/apiClient'
 import {
   buildGeneratedTravelData,
   getDayStops,
@@ -51,26 +53,27 @@ import {
   EMERGENCY_RADIUS_METERS,
 } from "../../utils/AiTravelDuration";
 
-const QUICK_PHRASES = [
-  "이거 얼마예요?",
-  "화장실 어디예요?",
-  "영수증 주세요",
-  "택시 불러주세요",
-  "병원이 어디예요?",
-  "도와주세요!",
-];
+const QUICK_PHRASES = ['이거 얼마예요?', '화장실 어디예요?', '영수증 주세요', '택시 불러주세요', '병원이 어디예요?', '도와주세요!']
+const TOOL_ITEMS = [
+  { modal: 'translate', Icon: Languages, label: '번역' },
+  { modal: 'budget',    Icon: Wallet,    label: '예산' },
+  { modal: 'fatigue',   Icon: Dumbbell,  label: '피로도' },
+  { modal: 'nearby',    Icon: MapPin,    label: '편의시설' },
+  { modal: 'emergency', Icon: Siren,     label: '긴급' },
+  { modal: 'safety',    Icon: Shield,    label: '야간안전' },
+  { modal: 'album',     Icon: Camera,    label: '사진' },
+  { modal: 'hotel',     Icon: Hotel,     label: '숙소' },
+]
 
-const PODCAST_ICON_URL =
-  "https://cdn-icons-gif.flaticon.com/15748/15748293.gif";
-const PODCAST_ICON_STATIC_URL =
-  "https://cdn-icons-png.flaticon.com/512/15748/15748293.png";
+const EASTER_EGG_PHRASE = '박보경 강사님 사랑합니다'
 
 function TranslateModal({ destination }) {
-  const [input, setInput] = useState("");
-  const [translated, setTranslated] = useState("");
-  const [pronunciation, setPronunciation] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [input, setInput]               = useState('')
+  const [translated, setTranslated]     = useState('')
+  const [pronunciation, setPronunciation] = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState('')
+  const [showEasterEgg, setShowEasterEgg] = useState(false)
 
   async function doTranslate(text) {
     if (!text.trim()) return;
@@ -111,13 +114,8 @@ function TranslateModal({ destination }) {
         className="mi-textarea"
         placeholder="번역할 내용을 입력하세요..."
         value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && e.ctrlKey) {
-            e.preventDefault();
-            doTranslate(input);
-          }
-        }}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); doTranslate(input) } }}
       />
       <button
         className="mi-map-btn mi-translate-btn"
@@ -134,6 +132,7 @@ function TranslateModal({ destination }) {
           )}
         </>
       )}
+      {showEasterEgg && <TeachersDayEgg onClose={() => setShowEasterEgg(false)} />}
     </div>
   );
 }
@@ -1575,22 +1574,17 @@ export default function AiTravelDurationView() {
             <div className="c-card-title">도구</div>
             <div className="tool-pad">
               {[
-                { modal: "translate", icon: "🌐", label: "번역" },
-                { modal: "budget", icon: "💰", label: "예산" },
-                { modal: "imageTranslate", icon: "▧", label: "이미지 번역" },
-                { modal: "nearby", icon: "📍", label: "편의시설" },
-                { modal: "emergency", icon: "🚨", label: "긴급" },
-                { modal: "safety", icon: "🛡", label: "야간안전" },
-                { modal: "album", icon: "📷", label: "사진" },
-                { modal: "hotel", icon: "🏨", label: "숙소" },
+                { modal: 'translate', icon: '🌐', label: '번역'    },
+                { modal: 'budget',    icon: '💰', label: '예산'    },
+                { modal: 'fatigue',   icon: '💪', label: '피로도'  },
+                { modal: 'nearby',    icon: '📍', label: '편의시설' },
+                { modal: 'emergency', icon: '🚨', label: '긴급'    },
+                { modal: 'safety',    icon: '🛡', label: '야간안전' },
+                { modal: 'album',     icon: '📷', label: '사진'    },
+                { modal: 'hotel',     icon: '🏨', label: '숙소'    },
               ].map(({ modal, icon, label }) => (
-                <button
-                  key={modal}
-                  className="tool-pad-btn"
-                  onClick={() => openModal(modal)}
-                >
-                  <span>{icon}</span>
-                  {label}
+                <button key={modal} className="tool-pad-btn" onClick={() => openModal(modal)}>
+                  <span>{icon}</span>{label}
                 </button>
               ))}
             </div>

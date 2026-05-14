@@ -25,67 +25,76 @@ import TourTicket from './pages/TourTicket'
 import TourTicketDetail from './pages/TourTicketDetail'
 import ProfilePage from './pages/ProfilePage'
 import Photobook from './pages/Photobook'
+import TravelPreparation from './pages/TravelPreparation'
 import { API_BASE } from './api/config'
 import OAuthCallback from './pages/OAuthCallback'
 import { hasPendingPlanSaveAfterAuth, savePendingPlanAfterAuth } from './utils/pendingPlanSave'
 
 function LegacyAccommodationRedirect() {
-  const location = useLocation()
-  const path = location.pathname.replace('/accomodation', '/accommodation')
-  return <Navigate to={`${path}${location.search}`} replace />
+  const location = useLocation();
+  const path = location.pathname.replace("/accomodation", "/accommodation");
+  return <Navigate to={`${path}${location.search}`} replace />;
 }
 
 function RootRedirect() {
-  const { isLoggedIn } = useAuth()
-  return isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
+  const { isLoggedIn } = useAuth();
+  return isLoggedIn ? (
+    <Navigate to="/home" replace />
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 function SocialAuthRedirect() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { login } = useAuth()
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const code = params.get('code')
+    const params = new URLSearchParams(location.search);
+    const code = params.get("code");
 
     async function handleKakaoCallback() {
-      if (!code) return
+      if (!code) return;
 
-      const profileParams = new URLSearchParams({ code })
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const profileParams = new URLSearchParams({ code });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const res = await fetch(`${API_BASE}/auth/kakao/profile?${profileParams.toString()}`, {
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
+      const res = await fetch(
+        `${API_BASE}/auth/kakao/profile?${profileParams.toString()}`,
+        {
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timeoutId);
       if (!res.ok) {
-        console.error('카카오 프로필 조회 실패:', await res.text())
-        return
+        console.error("카카오 프로필 조회 실패:", await res.text());
+        return;
       }
 
-      const data = await res.json()
+      const data = await res.json();
       if (data.token && data.user) {
-        login(data.user, data.token)
+        login(data.user, data.token);
         try {
           if (hasPendingPlanSaveAfterAuth()) {
-            await savePendingPlanAfterAuth()
+            await savePendingPlanAfterAuth();
           }
         } catch (err) {
-          console.error('Pending plan save failed:', err)
+          console.error("Pending plan save failed:", err);
         }
       }
-
     }
 
-    const nextPath = hasPendingPlanSaveAfterAuth() ? '/ai-generation-schedule' : '/home'
+    const nextPath = hasPendingPlanSaveAfterAuth()
+      ? "/ai-generation-schedule"
+      : "/home";
     handleKakaoCallback()
-      .catch(err => console.error('카카오 로그인 처리 실패:', err))
-      .finally(() => navigate(nextPath, { replace: true }))
-  }, [location.search, navigate, login])
+      .catch((err) => console.error("카카오 로그인 처리 실패:", err))
+      .finally(() => navigate(nextPath, { replace: true }));
+  }, [location.search, navigate, login]);
 
-  return null
+  return null;
 }
 
 export default function App() {
@@ -120,6 +129,7 @@ export default function App() {
           <Route path="/tour-ticket/:placeId" element={<TourTicketDetail />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/photobook" element={<Photobook />} />
+          <Route path="/travel-prep" element={<TravelPreparation />} />
           <Route path="/auth/kakao/callback" element={<OAuthCallback />} />
           <Route path="/auth/google/callback" element={<OAuthCallback />} />
         </Routes>
@@ -127,5 +137,5 @@ export default function App() {
       </BrowserRouter>
     </SearchProvider>
     </AuthProvider>
-  )
+  );
 }

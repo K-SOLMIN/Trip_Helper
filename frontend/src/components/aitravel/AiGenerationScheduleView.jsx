@@ -374,10 +374,6 @@ function pointFromItem(item) {
   return { lat, lng, title: item.name, time: item.time }
 }
 
-function shouldResolveMapPoint(item) {
-  const itemType = getItemType(item)
-  return itemType.label === '숙소'
-}
 
 function clearMapOverlays(markersRef, polylinesRef) {
   markersRef.current.forEach(marker => marker.setMap(null))
@@ -621,7 +617,6 @@ function RouteMap({ routeItems, activeDay, dest }) {
 
         const resolved = await Promise.all(spotItems.map(async item => {
           const point = pointFromItem(item)
-          if (point && !shouldResolveMapPoint(item)) return point
           const position = await geocodePlace(`${item.name}, ${dest}`)
           return position ? { ...position, title: item.name, time: item.time } : point
         }))

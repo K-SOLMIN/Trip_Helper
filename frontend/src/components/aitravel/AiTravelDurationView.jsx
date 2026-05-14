@@ -24,7 +24,6 @@ const TOOL_ITEMS = [
   { modal: 'translate',      Icon: Languages, label: '번역' },
   { modal: 'budget',         Icon: Wallet,    label: '예산' },
   { modal: 'imageTranslate', Icon: Image,     label: '이미지 번역' },
-  { modal: 'fatigue',        Icon: Dumbbell,  label: '피로도' },
   { modal: 'nearby',         Icon: MapPin,    label: '편의시설' },
   { modal: 'emergency',      Icon: Siren,     label: '긴급' },
   { modal: 'safety',         Icon: Shield,    label: '야간안전' },
@@ -32,7 +31,7 @@ const TOOL_ITEMS = [
   { modal: 'hotel',          Icon: Hotel,     label: '숙소' },
 ]
 
-const EASTER_EGG_PHRASE = '박보경 강사님 사랑합니다'
+const EASTER_EGG_PHRASE = '박보경 강사님 감사합니다'
 
 const PODCAST_ICON_URL = 'https://cdn-icons-gif.flaticon.com/15748/15748293.gif'
 const PODCAST_ICON_STATIC_URL = 'https://cdn-icons-png.flaticon.com/512/15748/15748293.png'
@@ -47,6 +46,7 @@ function TranslateModal({ destination }) {
 
   async function doTranslate(text) {
     if (!text.trim()) return
+    if (text.trim() === EASTER_EGG_PHRASE) { setShowEasterEgg(true); return }
     setLoading(true)
     setTranslated('')
     setPronunciation('')

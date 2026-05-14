@@ -1,21 +1,10 @@
-/* 전체 폰트 및 기본 여백 초기화 */
 .travel-prep-container {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
   font-family: "Pretendard", "Malgun Gothic", sans-serif;
-}
-
-/* 하늘색 그라데이션 배경 */
-.travel-prep-container {
   background: linear-gradient(to bottom, #87ceeb, #e0f6ff);
-  min-height: 100vh;
-  padding: 40px 20px 40px;
+  min-height: calc(100vh - 56px);
+  padding: 40px 20px 100px;
   color: #333;
-}
-
-/* 전체 컨테이너 설정 */
-.travel-prep-container {
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -24,6 +13,7 @@
 .prep-header {
   text-align: center;
   margin-bottom: 50px;
+  margin-top: 30px;
   color: #1a4a76;
 }
 

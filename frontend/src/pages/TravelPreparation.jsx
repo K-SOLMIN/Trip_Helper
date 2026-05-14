@@ -1,4 +1,6 @@
 import "./TravelPreparation.css";
+import Navbar from "../components/layout/Navbar";
+import BottomNav from "../components/layout/BottomNav";
 
 export default function TravelPreparation() {
   const prepItems = [
@@ -45,28 +47,32 @@ export default function TravelPreparation() {
   ];
 
   return (
-    <div className="travel-prep-container">
-      <header className="prep-header">
-        <h1>✈️ 완벽한 여행을 위한 필수 준비물</h1>
-        <p>
-          여행의 시작은 꼼꼼한 준비부터! 잊기 쉬운 필수품들을 확인하고 든든하게
-          떠나보세요.
-        </p>
-      </header>
+    <>
+      <Navbar />
+      <div className="travel-prep-container">
+        <header className="prep-header">
+          <h1>✈️ 완벽한 여행을 위한 필수 준비물</h1>
+          <p>
+            여행의 시작은 꼼꼼한 준비부터! 잊기 쉬운 필수품들을 확인하고 든든하게
+            떠나보세요.
+          </p>
+        </header>
 
-      <div className="prep-grid">
-        {prepItems.map((item, index) => (
-          <div key={index} className="prep-card">
-            <h2 className="card-title">{item.title}</h2>
-            <div className="card-image">
-              <img src={item.image} alt={item.title} />
+        <div className="prep-grid">
+          {prepItems.map((item, index) => (
+            <div key={index} className="prep-card">
+              <h2 className="card-title">{item.title}</h2>
+              <div className="card-image">
+                <img src={item.image} alt={item.title} />
+              </div>
+              <div className="card-info">
+                <p dangerouslySetInnerHTML={{ __html: item.info }} />
+              </div>
             </div>
-            <div className="card-info">
-              <p dangerouslySetInnerHTML={{ __html: item.info }} />
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+      <BottomNav />
+    </>
   );
 }

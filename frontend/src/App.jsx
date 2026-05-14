@@ -28,6 +28,7 @@ import TravelPreparation from './pages/TravelPreparation'
 import { API_BASE } from './api/config'
 import OAuthCallback from './pages/OAuthCallback'
 import { hasPendingPlanSaveAfterAuth, savePendingPlanAfterAuth } from './utils/pendingPlanSave'
+import MusicPlayer from './components/main/MusicPlayer'
 
 function LegacyAccommodationRedirect() {
   const location = useLocation();
@@ -101,6 +102,7 @@ export default function App() {
     <AuthProvider>
     <SearchProvider>
       <BrowserRouter>
+        <MusicPlayer />
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/home" element={<MainPage />} />

@@ -45,13 +45,14 @@ async function withRetry(fn, maxRetries = MAX_RETRIES) {
     try {
       return await fn();
     } catch (err) {
-      const is429 = isRateLimitError(err);
-      const isTransient = isTransientGeminiError(err);
+      const is429 = err.message?.includes('429') || err.status === 429
+      const is503 = err.message?.includes('503') || err.status === 503
 
       if (is429 && isDailyQuotaExceeded(err)) {
         console.warn('[Gemini] Daily quota exceeded; skipping retries.');
         throw toQuotaError(err);
       }
+      if ((!is429 && !is503) || attempt === maxRetries) throw err
 
       if ((!is429 && !isTransient) || attempt === maxRetries) throw err;
 
@@ -62,11 +63,12 @@ async function withRetry(fn, maxRetries = MAX_RETRIES) {
       const baseMs = Math.max(hintMs, expMs);
       const delayMs = Math.round(baseMs * (0.8 + Math.random() * 0.4));
 
+      const code = is503 ? '503' : '429'
       console.warn(
-        `[Gemini] ${is429 ? '429 rate limit' : '503/unavailable'}; retrying in ${Math.round(delayMs / 1000)}s `
-        + `(attempt ${attempt + 1}/${maxRetries})`
-      );
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+        `[Gemini] ${code} — 지수 백오프 ${Math.round(delayMs / 1000)}s 대기` +
+        ` (시도 ${attempt + 1}/${maxRetries})`
+      )
+      await new Promise(r => setTimeout(r, delayMs))
     }
   }
 }

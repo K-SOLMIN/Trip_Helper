@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../styles/AiGenerationSchedule.css'
 import { apiGet } from '../../api/apiClient'
@@ -20,6 +20,91 @@ const CITY_COUNTRY_CODE = {
   영국: 'GB', 런던: 'GB',
   베트남: 'VN', 호치민: 'VN', 하노이: 'VN',
   뉴질랜드: 'NZ',
+}
+
+const COUNTRY_TIMEZONES = {
+  // 아시아
+  일본: 'Asia/Tokyo', 도쿄: 'Asia/Tokyo', 오사카: 'Asia/Tokyo', 교토: 'Asia/Tokyo', 후쿠오카: 'Asia/Tokyo',
+  태국: 'Asia/Bangkok', 방콕: 'Asia/Bangkok', 치앙마이: 'Asia/Bangkok', 푸켓: 'Asia/Bangkok',
+  베트남: 'Asia/Ho_Chi_Minh', 호치민: 'Asia/Ho_Chi_Minh', 하노이: 'Asia/Bangkok',
+  싱가포르: 'Asia/Singapore',
+  인도네시아: 'Asia/Jakarta', 발리: 'Asia/Makassar',
+  대만: 'Asia/Taipei',
+  홍콩: 'Asia/Hong_Kong',
+  말레이시아: 'Asia/Kuala_Lumpur', 쿠알라룸푸르: 'Asia/Kuala_Lumpur',
+  필리핀: 'Asia/Manila', 마닐라: 'Asia/Manila',
+  // 유럽
+  프랑스: 'Europe/Paris', 파리: 'Europe/Paris',
+  이탈리아: 'Europe/Rome', 로마: 'Europe/Rome', 밀라노: 'Europe/Rome',
+  스페인: 'Europe/Madrid', 바르셀로나: 'Europe/Madrid', 마드리드: 'Europe/Madrid',
+  영국: 'Europe/London', 런던: 'Europe/London',
+  독일: 'Europe/Berlin', 베를린: 'Europe/Berlin',
+  체코: 'Europe/Prague', 프라하: 'Europe/Prague',
+  포르투갈: 'Europe/Lisbon', 리스본: 'Europe/Lisbon',
+  그리스: 'Europe/Athens', 아테네: 'Europe/Athens',
+  스위스: 'Europe/Zurich', 취리히: 'Europe/Zurich',
+  // 아메리카
+  미국: 'America/New_York', 뉴욕: 'America/New_York', 로스앤젤레스: 'America/Los_Angeles', 라스베가스: 'America/Los_Angeles',
+  캐나다: 'America/Toronto', 토론토: 'America/Toronto', 밴쿠버: 'America/Vancouver',
+  멕시코: 'America/Mexico_City',
+  브라질: 'America/Sao_Paulo',
+  페루: 'America/Lima',
+  아르헨티나: 'America/Argentina/Buenos_Aires',
+  쿠바: 'America/Havana',
+  칠레: 'America/Santiago',
+  // 오세아니아
+  호주: 'Australia/Sydney', 시드니: 'Australia/Sydney', 멜버른: 'Australia/Melbourne',
+  골드코스트: 'Australia/Brisbane', 브리즈번: 'Australia/Brisbane',
+  케언즈: 'Australia/Brisbane', 퍼스: 'Australia/Perth', 애들레이드: 'Australia/Adelaide',
+  뉴질랜드: 'Pacific/Auckland', 오클랜드: 'Pacific/Auckland',
+  피지: 'Pacific/Fiji',
+  괌: 'Pacific/Guam',
+  사이판: 'Pacific/Saipan',
+  하와이: 'Pacific/Honolulu',
+  // 중동·아프리카
+  튀르키예: 'Europe/Istanbul', 이스탄불: 'Europe/Istanbul',
+  '두바이(UAE)': 'Asia/Dubai', 두바이: 'Asia/Dubai',
+  모로코: 'Africa/Casablanca',
+  이집트: 'Africa/Cairo', 카이로: 'Africa/Cairo',
+  케냐: 'Africa/Nairobi',
+  남아공: 'Africa/Johannesburg',
+  요르단: 'Asia/Amman',
+}
+
+function resolveTimezone(dest) {
+  if (!dest) return null
+  for (const [key, tz] of Object.entries(COUNTRY_TIMEZONES)) {
+    if (dest.includes(key)) return tz
+  }
+  return null
+}
+
+function LocalTime({ country }) {
+  const [time, setTime] = useState('')
+  const tz = resolveTimezone(country)
+
+  useEffect(() => {
+    if (!tz) return
+    const fmt = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    const tick = () => setTime(fmt.format(new Date()))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [tz])
+
+  if (!tz || !time) return null
+  return (
+    <div className="hero-stat">
+      <span>현지 시간</span>
+      <strong style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{time}</strong>
+    </div>
+  )
 }
 
 function resolveCountryCode(location, fallback) {
@@ -374,10 +459,6 @@ function pointFromItem(item) {
   return { lat, lng, title: item.name, time: item.time }
 }
 
-function shouldResolveMapPoint(item) {
-  const itemType = getItemType(item)
-  return itemType.label === '숙소'
-}
 
 function clearMapOverlays(markersRef, polylinesRef) {
   markersRef.current.forEach(marker => marker.setMap(null))
@@ -592,7 +673,7 @@ function buildPlaceSrc(items, dest) {
   return `https://www.google.com/maps/embed/v1/search?${params}`
 }
 
-function RouteMap({ routeItems, activeDay, dest }) {
+const RouteMap = forwardRef(function RouteMap({ routeItems, activeDay, dest }, ref) {
   const mapElRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef([])
@@ -600,7 +681,18 @@ function RouteMap({ routeItems, activeDay, dest }) {
   const spiderRef = useRef(null)
   const mapClickListenerRef = useRef(null)
   const idleListenerRef = useRef(null)
+  const geocodedRef = useRef([])
   const [useFallback, setUseFallback] = useState(false)
+
+  useImperativeHandle(ref, () => ({
+    focusMarker(index) {
+      const map = mapRef.current
+      const pos = geocodedRef.current[index]
+      if (!map || !pos) return
+      map.panTo({ lat: pos.lat, lng: pos.lng })
+      map.setZoom(17)
+    }
+  }))
   const spotItems = useMemo(
     () => (routeItems ?? []).filter(item => !item.isHotel),
     [routeItems]
@@ -621,11 +713,12 @@ function RouteMap({ routeItems, activeDay, dest }) {
 
         const resolved = await Promise.all(spotItems.map(async item => {
           const point = pointFromItem(item)
-          if (point && !shouldResolveMapPoint(item)) return point
+          if (point) return point
           const position = await geocodePlace(`${item.name}, ${dest}`)
-          return position ? { ...position, title: item.name, time: item.time } : point
+          return position ? { ...position, title: item.name, time: item.time } : null
         }))
         if (cancelled) return
+        geocodedRef.current = resolved
         const points = filterOutliers(resolved.filter(Boolean))
 
         if (points.length < 2) {
@@ -714,13 +807,16 @@ function RouteMap({ routeItems, activeDay, dest }) {
   }
 
   return <div className="route-map-canvas" ref={mapElRef} />
-}
+})
 
 export default function AiGenerationScheduleView({ planData, tripInfo, onReset, onTravelDurationClick }) {
   const navigate = useNavigate()
   const [activeDay, setActiveDay] = useState(0)
   const [selectedItem, setSelectedItem] = useState(null)
   const [routeInfos, setRouteInfos] = useState([])
+  const [openPanel, setOpenPanel] = useState(null)
+  const togglePanel = id => setOpenPanel(prev => prev === id ? null : id)
+  const routeMapRef = useRef(null)
 
   const dest = tripInfo?.country || tripInfo?.continent || '목적지'
   const days = planData?.days ?? []
@@ -824,145 +920,181 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
           <article
             className="hero-card"
             style={{
-              background: `linear-gradient(100deg, rgba(7,17,31,0.74), rgba(7,17,31,0.18) 54%, rgba(0,143,131,0.42)), url("${bgImage}") center/cover`,
+              background: `linear-gradient(160deg, rgba(7,17,31,0.88) 0%, rgba(7,17,31,0.52) 55%, rgba(0,143,131,0.42) 100%), url("${bgImage}") center/cover`,
             }}
           >
             <div className="hero-top">
               <div className="status">AI 일정 생성 완료</div>
-              <div className="score-card">
-                <span>총 방문지</span>
-                <strong>{totalPlaces}곳</strong>
-              </div>
             </div>
-            <div>
+            <div className="hero-body">
               <h1 className="hero-title">{dest}</h1>
-              <p className="hero-copy">{days.map(d => d.theme).join(' · ')}</p>
+              {/* <p className="hero-copy">{days.map(d => d.theme).join(' · ')}</p> */}
+            </div>
+            <div className="hero-stats-bar">
+              <div className="hero-stat"><span>총 방문지</span><strong>{totalPlaces}곳</strong></div>
+              <div className="hero-stat"><span>총 일수</span><strong>{days.length}일</strong></div>
+              <div className="hero-stat"><span>식사</span><strong>{mealCount}회</strong></div>
+              <div className="hero-stat"><span>여행 스타일</span><strong>{tripInfo?.styles?.[0] ?? '자유'}</strong></div>
             </div>
           </article>
 
-          <aside className="intel-card">
-            <h2>여행 요약 리포트</h2>
-            <div className="intel-grid">
-              <div className="intel"><span>총 방문 포인트</span><strong>{totalPlaces}곳</strong></div>
-              <div className="intel"><span>총 일수</span><strong>{days.length}일</strong></div>
-              <div className="intel"><span>식사 포인트</span><strong>{mealCount}회</strong></div>
-              <div className="intel"><span>여행 스타일</span><strong>{tripInfo?.styles?.[0] ?? '자유'}</strong></div>
+          {(planData?.warnings?.length > 0 ||
+            planData?.feasibility?.status === 'needs_adjustment' ||
+            planData?.feasibility?.status === 'impossible' ||
+            planData?.omittedPlaces?.length > 0 ||
+            planData?.accommodations?.length > 0) && (
+            <div className="accordion-block">
+              {planData?.warnings?.length > 0 && (
+                <div className={`acd-panel warnings-panel${openPanel === 'warnings' ? ' open' : ''}`}>
+                  <button className="acd-header" onClick={() => togglePanel('warnings')}>
+                    <span className="acd-icon">⚠️</span>
+                    <span className="acd-title">여행 전 꼭 확인하세요</span>
+                    <span className="acd-badge">{planData.warnings.length}건</span>
+                    <svg className="acd-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <div className="acd-wrap">
+                    <div className="acd-body">
+                      <div className="acd-inner">
+                        <div className="warnings-list">
+                          {planData.warnings.map((w, i) => (
+                            <div key={i} className={`warning-item warning-${w.type}`}>
+                              <span className="warning-icon">{w.icon}</span>
+                              <div className="warning-body">
+                                <p className="warning-title">{w.title}</p>
+                                <p className="warning-message">{w.message}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(planData?.feasibility?.status === 'needs_adjustment' ||
+                planData?.feasibility?.status === 'impossible' ||
+                planData?.omittedPlaces?.length > 0) && (
+                <div className={`acd-panel omitted-panel${openPanel === 'adjustments' ? ' open' : ''}`}>
+                  <button className="acd-header" onClick={() => togglePanel('adjustments')}>
+                    <span className="acd-icon">✏️</span>
+                    <span className="acd-title">조정된 요청</span>
+                    {planData?.omittedPlaces?.length > 0 && (
+                      <span className="acd-badge">{planData.omittedPlaces.length}건</span>
+                    )}
+                    <svg className="acd-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <div className="acd-wrap">
+                    <div className="acd-body">
+                      <div className="acd-inner">
+                        {planData?.feasibility?.message && (
+                          <p className="omitted-summary">{planData.feasibility.message}</p>
+                        )}
+                        {planData?.feasibility?.suggestedAdjustments?.length > 0 && (
+                          <div className="adjustment-list">
+                            {planData.feasibility.suggestedAdjustments.map((item, i) => (
+                              <span key={i}>{item}</span>
+                            ))}
+                          </div>
+                        )}
+                        {planData?.omittedPlaces?.length > 0 && (
+                          <div className="omitted-list">
+                            {planData.omittedPlaces.map((place, i) => (
+                              <div key={i} className="omitted-item">
+                                <p className="omitted-name">{place.name}</p>
+                                <p className="omitted-reason">{place.reason}</p>
+                                {place.alternative && (
+                                  <p className="omitted-alt">대안: {place.alternative}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {planData?.accommodations?.length > 0 && (
+                <div className={`acd-panel accom-panel${openPanel === 'accommodations' ? ' open' : ''}`}>
+                  <button className="acd-header" onClick={() => togglePanel('accommodations')}>
+                    <span className="acd-icon">🏨</span>
+                    <span className="acd-title">숙소 정보</span>
+                    <span className="acd-badge">{planData.accommodations.length}곳</span>
+                    <svg className="acd-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  <div className="acd-wrap">
+                    <div className="acd-body">
+                      <div className="acd-inner">
+                        <div className="accom-list">
+                          {planData.accommodations.map((acc, i) => (
+                            <div key={i} className="accom-item">
+                              <div className="accom-info">
+                                <p className="accom-name">🏨 {acc.name}</p>
+                                <p className="accom-location">{acc.location}</p>
+                                {acc.checkIn && acc.checkOut && (
+                                  <p className="accom-dates">{acc.checkIn} ~ {acc.checkOut}</p>
+                                )}
+                              </div>
+                              <button
+                                className="accom-book-btn"
+                                onClick={() => {
+                                  const countryCode = resolveCountryCode(acc.location, dest)
+                                  const params = new URLSearchParams({
+                                    countryKey:  acc.location || dest,
+                                    countryCode,
+                                    destination: acc.searchQuery || acc.location || dest,
+                                    checkIn:     acc.checkIn  || '',
+                                    checkOut:    acc.checkOut || '',
+                                    guests:      String(tripInfo?.adults  || 2),
+                                    children:    String(tripInfo?.children || 0),
+                                  })
+                                  navigate(`/accommodation/results?${params}`)
+                                }}
+                              >
+                                예약하러 가기
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        {planData.accommodations.length > 1 && (
+                          <button
+                            className="accom-book-all-btn"
+                            onClick={() => {
+                              const queue = planData.accommodations.map(acc => ({
+                                name:        acc.name,
+                                countryKey:  acc.location || dest,
+                                countryCode: resolveCountryCode(acc.location, dest),
+                                destination: acc.searchQuery || acc.location || dest,
+                                checkIn:     acc.checkIn  || '',
+                                checkOut:    acc.checkOut || '',
+                                guests:      String(tripInfo?.adults  || 2),
+                                children:    String(tripInfo?.children || 0),
+                              }))
+                              sessionStorage.setItem('accom_booking_queue', JSON.stringify(queue))
+                              sessionStorage.setItem('accom_booking_index', '0')
+                              sessionStorage.setItem('accom_return_url', window.location.pathname + window.location.search)
+                              sessionStorage.setItem('accom_booking_source', 'ai-generation-schedule')
+                              const { name: _n, ...first } = queue[0]
+                              navigate(`/accommodation/results?${new URLSearchParams(first)}`)
+                            }}
+                          >
+                            전체 숙소 한번에 예약하기 ({planData.accommodations.length}곳)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <ul className="strategy">
-              {days.slice(0, 3).map((day, i) => (
-                <li key={i}>
-                  <b>{i + 1}</b>
-                  <span>{day.label}: {day.theme}</span>
-                </li>
-              ))}
-            </ul>
-          </aside>
-
-          {planData?.warnings?.length > 0 && (
-            <aside className="intel-card warnings-card">
-              <h2>여행 전 꼭 확인하세요</h2>
-              <div className="warnings-list">
-                {planData.warnings.map((w, i) => (
-                  <div key={i} className={`warning-item warning-${w.type}`}>
-                    <span className="warning-icon">{w.icon}</span>
-                    <div className="warning-body">
-                      <p className="warning-title">{w.title}</p>
-                      <p className="warning-message">{w.message}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </aside>
-          )}
-
-          {(planData?.feasibility?.status === 'needs_adjustment' || planData?.feasibility?.status === 'impossible' || planData?.omittedPlaces?.length > 0) && (
-            <aside className="intel-card omitted-card">
-              <h2>조정된 요청</h2>
-              {planData?.feasibility?.message && (
-                <p className="omitted-summary">{planData.feasibility.message}</p>
-              )}
-              {planData?.feasibility?.suggestedAdjustments?.length > 0 && (
-                <div className="adjustment-list">
-                  {planData.feasibility.suggestedAdjustments.map((item, i) => (
-                    <span key={i}>{item}</span>
-                  ))}
-                </div>
-              )}
-              {planData?.omittedPlaces?.length > 0 && (
-                <div className="omitted-list">
-                  {planData.omittedPlaces.map((place, i) => (
-                    <div key={i} className="omitted-item">
-                      <p className="omitted-name">{place.name}</p>
-                      <p className="omitted-reason">{place.reason}</p>
-                      {place.alternative && (
-                        <p className="omitted-alt">대안: {place.alternative}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </aside>
-          )}
-
-          {planData?.accommodations?.length > 0 && (
-            <aside className="intel-card accom-card">
-              <h2>숙소 정보</h2>
-              <div className="accom-list">
-                {planData.accommodations.map((acc, i) => (
-                  <div key={i} className="accom-item">
-                    <div className="accom-info">
-                      <p className="accom-name">🏨 {acc.name}</p>
-                      <p className="accom-location">{acc.location}</p>
-                      {acc.checkIn && acc.checkOut && (
-                        <p className="accom-dates">{acc.checkIn} ~ {acc.checkOut}</p>
-                      )}
-                    </div>
-                    <button
-                      className="accom-book-btn"
-                      onClick={() => {
-                        const countryCode = resolveCountryCode(acc.location, dest)
-                        const params = new URLSearchParams({
-                          countryKey:  acc.location || dest,
-                          countryCode,
-                          destination: acc.searchQuery || acc.location || dest,
-                          checkIn:     acc.checkIn  || '',
-                          checkOut:    acc.checkOut || '',
-                          guests:      String(tripInfo?.adults  || 2),
-                          children:    String(tripInfo?.children || 0),
-                        })
-                        navigate(`/accommodation/results?${params}`)
-                      }}
-                    >
-                      예약하러 가기
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {planData.accommodations.length > 1 && (
-                <button
-                  className="accom-book-all-btn"
-                  onClick={() => {
-                    const queue = planData.accommodations.map(acc => ({
-                      name:        acc.name,
-                      countryKey:  acc.location || dest,
-                      countryCode: resolveCountryCode(acc.location, dest),
-                      destination: acc.searchQuery || acc.location || dest,
-                      checkIn:     acc.checkIn  || '',
-                      checkOut:    acc.checkOut || '',
-                      guests:      String(tripInfo?.adults  || 2),
-                      children:    String(tripInfo?.children || 0),
-                    }))
-                    sessionStorage.setItem('accom_booking_queue', JSON.stringify(queue))
-                    sessionStorage.setItem('accom_booking_index', '0')
-                    sessionStorage.setItem('accom_return_url', window.location.pathname + window.location.search)
-                    const { name: _n, ...first } = queue[0]
-                    navigate(`/accommodation/results?${new URLSearchParams(first)}`)
-                  }}
-                >
-                  전체 숙소 한번에 예약하기 ({planData.accommodations.length}곳)
-                </button>
-              )}
-            </aside>
           )}
         </section>
 
@@ -1082,11 +1214,11 @@ export default function AiGenerationScheduleView({ planData, tripInfo, onReset, 
           <aside className="panel map-shell">
             <h3>{activeDay + 1}일차 Google Maps 동선</h3>
             <div className="map">
-              <RouteMap routeItems={routeItems} activeDay={activeDay} dest={dest} />
+              <RouteMap ref={routeMapRef} routeItems={routeItems} activeDay={activeDay} dest={dest} />
             </div>
             <ul className="map-focus">
               {routeItems.filter(item => !item.isHotel).map((item, i) => (
-                <li key={i} style={{ cursor: 'pointer' }} onClick={() => setSelectedItem(item)}>
+                <li key={i} style={{ cursor: 'pointer' }} onClick={() => routeMapRef.current?.focusMarker(i)}>
                   <b>{i + 1}</b>
                   {item.name}
                   <span>{item.time}</span>

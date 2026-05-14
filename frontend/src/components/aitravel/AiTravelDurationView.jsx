@@ -337,17 +337,9 @@ function ImageTranslateModal({
 }
 
 const FATIGUE_LABELS = {
-  1: "최상 컨디션",
-  2: "컨디션 좋음",
-  3: "약간 피로",
-  4: "적당히 피로",
-  5: "중간 피로",
-  6: "카페 휴식 추천",
-  7: "도보 줄이기",
-  8: "택시 추천",
-  9: "숙소 복귀 추천",
-  10: "일정 조정 필요",
-};
+  1:'최상 컨디션', 2:'컨디션 좋음', 3:'약간 피로', 4:'적당히 피로', 5:'중간 피로',
+  6:'카페 휴식 추천', 7:'도보 줄이기', 8:'택시 추천', 9:'숙소 복귀 추천', 10:'일정 조정 필요',
+}
 
 function estimateCostWon(costText, exchangeRate) {
   const text = String(costText || "").trim();
@@ -595,28 +587,10 @@ export default function AiTravelDurationView() {
     return arr;
   }, [dayStops, restStop, activeStopIdx]);
 
-  const mapState = useCallback(
-    () => ({
-      schedule,
-      activeIdx,
-      activeStopIdx,
-      selectedTravelMode,
-      activeTransitStepIdx,
-      routeModeResults,
-      cityData,
-      transitResults,
-    }),
-    [
-      schedule,
-      activeIdx,
-      activeStopIdx,
-      selectedTravelMode,
-      activeTransitStepIdx,
-      routeModeResults,
-      cityData,
-      transitResults,
-    ],
-  );
+  const mapState = useCallback(() => ({
+    schedule, activeIdx, activeStopIdx, selectedTravelMode,
+    activeTransitStepIdx, routeModeResults, cityData, transitResults,
+  }), [schedule, activeIdx, activeStopIdx, selectedTravelMode, activeTransitStepIdx, routeModeResults, cityData, transitResults])
 
   const getActiveEmergencyPoint = useCallback(() => {
     if (!day) return null;
@@ -754,30 +728,19 @@ export default function AiTravelDurationView() {
 
   // ── 하루 전체 정류장 택시·대중교통 선조회 ────────────────────
   useEffect(() => {
-    if (!mapReady || !travelData || !day) return;
-    const state = { schedule, activeIdx, cityData };
+    if (!mapReady || !travelData || !day) return
+    const state = { schedule, activeIdx, cityData }
     dayStops.forEach((_, i) => {
-      if (i === 0) return;
-      requestSimpleRoute(i, "taxi", state, (key, result) => {
-        setRouteModeResults((prev) => ({ ...prev, [key]: result }));
-      });
-      requestTransitRoute(
-        i,
-        { schedule, activeIdx, cityData, day: day.day },
-        ({ transitKey, transitResult, routeKey, routeValue }) => {
-          setTransitResults((prev) => ({
-            ...prev,
-            [transitKey]: transitResult,
-          }));
-          if (routeKey && routeValue)
-            setRouteModeResults((prev) => ({
-              ...prev,
-              [routeKey]: routeValue,
-            }));
-        },
-      );
-    });
-  }, [mapReady, travelData, activeIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (i === 0) return
+      requestSimpleRoute(i, 'taxi', state, (key, result) => {
+        setRouteModeResults(prev => ({ ...prev, [key]: result }))
+      })
+      requestTransitRoute(i, { schedule, activeIdx, cityData, day: day.day }, ({ transitKey, transitResult, routeKey, routeValue }) => {
+        setTransitResults(prev => ({ ...prev, [transitKey]: transitResult }))
+        if (routeKey && routeValue) setRouteModeResults(prev => ({ ...prev, [routeKey]: routeValue }))
+      })
+    })
+  }, [mapReady, travelData, activeIdx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 지출 입력창 자동 채우기 ────────────────────────────────
   useEffect(() => {
@@ -1489,22 +1452,14 @@ export default function AiTravelDurationView() {
   );
 
   // ── 택시/도보 경로 요청 ───────────────────────────────────
-  const handleSimpleRouteRequest = useCallback(
-    (stopIdx, mode) => {
-      if (!day) return;
-      const key = modeResultKey(day.day, stopIdx, mode);
-      if (routeModeResults[key]) return;
-      requestSimpleRoute(
-        stopIdx,
-        mode,
-        { schedule, activeIdx, cityData },
-        (k, result) => {
-          setRouteModeResults((prev) => ({ ...prev, [k]: result }));
-        },
-      );
-    },
-    [day, schedule, activeIdx, cityData, routeModeResults],
-  );
+  const handleSimpleRouteRequest = useCallback((stopIdx, mode) => {
+    if (!day) return
+    const key = modeResultKey(day.day, stopIdx, mode)
+    if (routeModeResults[key]) return
+    requestSimpleRoute(stopIdx, mode, { schedule, activeIdx, cityData }, (k, result) => {
+      setRouteModeResults(prev => ({ ...prev, [k]: result }))
+    })
+  }, [day, schedule, activeIdx, cityData, routeModeResults])
 
   if (!travelData) {
     return (
@@ -1573,15 +1528,8 @@ export default function AiTravelDurationView() {
           <div className="dest-left">
             <div className="dest-city">{travelData.heroTitle}</div>
             <div className="dest-meta">
-              <span className="dest-tag">
-                <span className="live-dot"></span> Day{" "}
-                {String(day?.day || 1).padStart(2, "0")} 진행 중
-              </span>
-              <span className="dest-tag">
-                {travelData.isGenerated
-                  ? "AI 생성 일정 기반으로 여행을 진행합니다"
-                  : "AI 생성 일정 기반"}
-              </span>
+              <span className="dest-tag"><span className="live-dot"></span> Day {String(day?.day || 1).padStart(2, '0')} 진행 중</span>
+              <span className="dest-tag">{travelData.isGenerated ? 'AI 생성 일정 기반으로 여행을 진행합니다' : 'AI 생성 일정 기반'}</span>
             </div>
           </div>
           <div className="dest-right">
@@ -1801,12 +1749,10 @@ export default function AiTravelDurationView() {
                                 </div>
                                 <button
                                   className="tl-transit-toggle"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    selectStop(i);
-                                    setOpenTransitKey((prev) =>
-                                      prev === transitKey ? "" : transitKey,
-                                    );
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    selectStop(i)
+                                    setOpenTransitKey(prev => prev === transitKey ? '' : transitKey)
                                   }}
                                 >
                                   {transitOpen
@@ -1824,120 +1770,80 @@ export default function AiTravelDurationView() {
                             <div className="tl-transit-panel">
                               <div className="tl-transit-inner">
                                 <div className="tl-transit-list">
-                                  {transitOptions.map((opt, oi) =>
-                                    opt.mode === "transit" ? (
-                                      <div
-                                        key={oi}
-                                        className={`tl-transit-option has-detail${activeMode === "TRANSIT" ? " active" : ""}${detailOpen ? " detail-open" : ""}`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          selectStop(i);
-                                          if (
-                                            !transitResults[
-                                              transitPanelKey(day?.day, i)
-                                            ]
-                                          ) {
-                                            handleTransitRequest(i);
-                                          } else {
-                                            setSelectedTravelMode("TRANSIT");
-                                            setActiveTransitStepIdx(null);
-                                            setOpenTransitKey(
-                                              transitPanelKey(day?.day, i),
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        <div className="tl-transit-option-head">
-                                          <div className="tl-transit-mode">
-                                            {opt.icon}
-                                          </div>
-                                          <div className="tl-transit-main">
-                                            <strong>{opt.title}</strong>
-                                            <span>{opt.desc}</span>
-                                          </div>
-                                          <div className="tl-transit-time">
-                                            {opt.time}
-                                          </div>
-                                        </div>
-                                        <div className="tl-transit-detail">
-                                          <div className="tl-transit-detail-inner">
-                                            {transitDetails.map(
-                                              (detail, di) => (
-                                                <div
-                                                  key={di}
-                                                  className={`tl-transit-step${activeDetailStep === di ? " active" : ""}`}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActiveStopIdx(i);
-                                                    setSelectedTravelMode(
-                                                      "TRANSIT",
-                                                    );
-                                                    setActiveTransitStepIdx(di);
-                                                  }}
-                                                >
-                                                  <div className="tl-transit-mode">
-                                                    {detail.icon}
-                                                  </div>
-                                                  <div className="tl-transit-main">
-                                                    <strong>
-                                                      {detail.title}
-                                                    </strong>
-                                                    <span>{detail.desc}</span>
-                                                    {detail.meta?.length >
-                                                      0 && (
-                                                      <div className="tl-transit-meta">
-                                                        {detail.meta.map(
-                                                          (m, mi) => (
-                                                            <span key={mi}>
-                                                              {m}
-                                                            </span>
-                                                          ),
-                                                        )}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                  <div className="tl-transit-time">
-                                                    {detail.time}
-                                                  </div>
-                                                </div>
-                                              ),
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div
-                                        key={oi}
-                                        className={`tl-transit-option${(activeMode === "WALKING" && opt.mode === "walk") || (activeMode === "TAXI" && opt.mode === "taxi") ? " active" : ""}`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          selectStop(i);
-                                          const newMode =
-                                            opt.mode === "taxi"
-                                              ? "TAXI"
-                                              : "WALKING";
-                                          setSelectedTravelMode(newMode);
-                                          setActiveTransitStepIdx(null);
-                                          setOpenTransitKey(
-                                            transitPanelKey(day?.day, i),
-                                          );
-                                          if (opt.mode === "taxi")
-                                            handleSimpleRouteRequest(i, "taxi");
-                                        }}
-                                      >
-                                        <div className="tl-transit-mode">
-                                          {opt.icon}
-                                        </div>
+                                  {transitOptions.map((opt, oi) => opt.mode === 'transit' ? (
+                                    <div
+                                      key={oi}
+                                      className={`tl-transit-option has-detail${activeMode === 'TRANSIT' ? ' active' : ''}${detailOpen ? ' detail-open' : ''}`}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        selectStop(i)
+                                        if (!transitResults[transitPanelKey(day?.day, i)]) {
+                                          handleTransitRequest(i)
+                                        } else {
+                                          setSelectedTravelMode('TRANSIT')
+                                          setActiveTransitStepIdx(null)
+                                          setOpenTransitKey(transitPanelKey(day?.day, i))
+                                        }
+                                      }}
+                                    >
+                                      <div className="tl-transit-option-head">
+                                        <div className="tl-transit-mode">{opt.icon}</div>
                                         <div className="tl-transit-main">
                                           <strong>{opt.title}</strong>
                                           <span>{opt.desc}</span>
                                         </div>
-                                        <div className="tl-transit-time">
-                                          {opt.time}
+                                        <div className="tl-transit-time">{opt.time}</div>
+                                      </div>
+                                      <div className="tl-transit-detail">
+                                        <div className="tl-transit-detail-inner">
+                                          {transitDetails.map((detail, di) => (
+                                            <div
+                                              key={di}
+                                              className={`tl-transit-step${activeDetailStep === di ? ' active' : ''}`}
+                                              onClick={e => {
+                                                e.stopPropagation()
+                                                setActiveStopIdx(i)
+                                                setSelectedTravelMode('TRANSIT')
+                                                setActiveTransitStepIdx(di)
+                                              }}
+                                            >
+                                              <div className="tl-transit-mode">{detail.icon}</div>
+                                              <div className="tl-transit-main">
+                                                <strong>{detail.title}</strong>
+                                                <span>{detail.desc}</span>
+                                                {detail.meta?.length > 0 && (
+                                                  <div className="tl-transit-meta">
+                                                    {detail.meta.map((m, mi) => <span key={mi}>{m}</span>)}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <div className="tl-transit-time">{detail.time}</div>
+                                            </div>
+                                          ))}
                                         </div>
                                       </div>
-                                    ),
-                                  )}
+                                    </div>
+                                  ) : (
+                                    <div
+                                      key={oi}
+                                      className={`tl-transit-option${(activeMode === 'WALKING' && opt.mode === 'walk') || (activeMode === 'TAXI' && opt.mode === 'taxi') ? ' active' : ''}`}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        selectStop(i)
+                                        const newMode = opt.mode === 'taxi' ? 'TAXI' : 'WALKING'
+                                        setSelectedTravelMode(newMode)
+                                        setActiveTransitStepIdx(null)
+                                        setOpenTransitKey(transitPanelKey(day?.day, i))
+                                        if (opt.mode === 'taxi') handleSimpleRouteRequest(i, 'taxi')
+                                      }}
+                                    >
+                                      <div className="tl-transit-mode">{opt.icon}</div>
+                                      <div className="tl-transit-main">
+                                        <strong>{opt.title}</strong><span>{opt.desc}</span>
+                                      </div>
+                                      <div className="tl-transit-time">{opt.time}</div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             </div>

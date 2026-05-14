@@ -55,27 +55,18 @@ export function lookupEmergencyNumber(destination) {
 
 export function heroImageForDestination(destination) {
   const images = {
-    호주: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1800&q=80",
-    시드니:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1800&q=80",
-    일본: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1800&q=80",
-    도쿄: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1800&q=80",
-    오사카:
-      "https://images.unsplash.com/photo-1590559899731-a382839e5549?auto=format&fit=crop&w=1800&q=80",
-    프랑스:
-      "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1800&q=80",
-    파리: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1800&q=80",
-    태국: "https://images.unsplash.com/photo-1508009603885-50cf7c8dd0d5?auto=format&fit=crop&w=1800&q=80",
-    베트남:
-      "https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1800&q=80",
-  };
-  const found = Object.entries(images).find(([key]) =>
-    destination.includes(key),
-  );
-  return (
-    found?.[1] ||
-    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1800&q=80"
-  );
+    호주: 'https://unsplash.com/photos/3zb6QUVrfwA/download?force=true&w=2200',
+    시드니: 'https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?auto=format&fit=crop&w=2200&q=90',
+    일본: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1800&q=80',
+    도쿄: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1800&q=80',
+    오사카: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?auto=format&fit=crop&w=1800&q=80',
+    프랑스: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1800&q=80',
+    파리: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=1800&q=80',
+    태국: 'https://images.unsplash.com/photo-1508009603885-50cf7c8dd0d5?auto=format&fit=crop&w=1800&q=80',
+    베트남: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1800&q=80',
+  }
+  const found = Object.entries(images).find(([key]) => destination.includes(key))
+  return found?.[1] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1800&q=80'
 }
 
 // 여행 예산으로 비현실적인 값(10억 초과)은 0으로 처리
@@ -134,6 +125,17 @@ export function parseDurationMinutes(text) {
     (hours ? parseInt(hours[1], 10) * 60 : 0) +
     (mins ? parseInt(mins[1], 10) : 0)
   );
+}
+
+export function estimateNswTaxiFareText(distanceMeters) {
+  const km = Number(distanceMeters) / 1000
+  if (!Number.isFinite(km) || km <= 0) return ''
+  const fare = 5 + Math.min(km, 12) * 2.52 + Math.max(0, km - 12) * 2.29
+  return `예상 AUD ${fare.toFixed(2)}`
+}
+
+function shouldShowAustralianTaxiFare(destination) {
+  return /호주|australia|sydney|시드니/i.test(String(destination || ''))
 }
 
 // ── 일정 구조 헬퍼 ─────────────────────────────────────────────
@@ -264,24 +266,13 @@ export function modeResultKey(day, stopIdx, mode) {
   return `${day}-${stopIdx}-${mode}`;
 }
 
-export function getModeOptions(
-  stop,
-  i,
-  { day, routeModeResults, transitResults },
-) {
-  const walkLive = routeModeResults[modeResultKey(day, i, "walk")];
-  const taxiLive = routeModeResults[modeResultKey(day, i, "taxi")];
-  const transitLive = routeModeResults[modeResultKey(day, i, "transit")];
-  const fallbackWalk =
-    i === 0
-      ? { time: "0분", desc: "숙소 앞에서 바로 일정 시작", minutes: 0 }
-      : stop.kind === "risk"
-        ? { time: "18분", desc: "대로변 우회 · 골목길 회피", minutes: 18 }
-        : {
-            time: i % 2 ? "12분" : "15분",
-            desc: "현재 루트 유지 · 골목길 포함",
-            minutes: i % 2 ? 12 : 15,
-          };
+export function getModeOptions(stop, i, { day, routeModeResults, transitResults }) {
+  const walkLive    = routeModeResults[modeResultKey(day, i, 'walk')]
+  const taxiLive    = routeModeResults[modeResultKey(day, i, 'taxi')]
+  const transitLive = routeModeResults[modeResultKey(day, i, 'transit')]
+  const fallbackWalk = i === 0
+    ? { time: '0분', desc: '숙소 앞에서 바로 일정 시작', minutes: 0 }
+    : { time: '조회', desc: '도보 경로 조회', minutes: 999 }
   if (i === 0) {
     return [
       {
@@ -825,18 +816,17 @@ export function formatTransitResult(result) {
   return options;
 }
 
-function formatSimpleRouteResult(result, mode) {
-  const leg = result.routes?.[0]?.legs?.[0];
-  if (!leg) return null;
-  const duration = leg.duration?.text || "시간 정보 없음";
-  const distance = leg.distance?.text || "거리 정보 없음";
+function formatSimpleRouteResult(result, mode, destination) {
+  const leg = result.routes?.[0]?.legs?.[0]
+  if (!leg) return null
+  const duration = leg.duration?.text || '시간 정보 없음'
+  const distance = leg.distance?.text || '거리 정보 없음'
+  const taxiFare = mode === 'taxi' && shouldShowAustralianTaxiFare(destination)
+    ? estimateNswTaxiFareText(leg.distance?.value)
+    : ''
   return {
-    mode,
-    icon: mode === "taxi" ? "🚕" : "🚶",
-    title: mode === "taxi" ? "택시" : "도보",
-    desc: `${duration} · ${distance}`,
-    time: duration,
-    minutes: parseDurationMinutes(duration) || 999,
+    mode, icon: mode === 'taxi' ? '🚕' : '🚶', title: mode === 'taxi' ? '택시' : '도보',
+    desc: [duration, distance, taxiFare].filter(Boolean).join(' · '), time: duration, minutes: parseDurationMinutes(duration) || 999,
     route: {
       stepIdx: null,
       path: leg.steps.flatMap(
@@ -849,35 +839,20 @@ function formatSimpleRouteResult(result, mode) {
   };
 }
 
-export function requestSimpleRoute(
-  stopIdx,
-  mode,
-  { schedule, activeIdx, cityData },
-  onResult,
-) {
-  const s = schedule[activeIdx];
-  if (!s) return;
-  const key = modeResultKey(s.day, stopIdx, mode);
-  const p = getRouteSegment(s.base, stopIdx, cityData);
-  if (!window.google || !google.maps?.DirectionsService || p.length < 2) return;
-  const svc = new google.maps.DirectionsService();
-  svc.route(
-    {
-      origin: p[0],
-      destination: p[1],
-      travelMode:
-        mode === "taxi"
-          ? google.maps.TravelMode.DRIVING
-          : google.maps.TravelMode.WALKING,
-    },
-    (result, status) => {
-      const formatted =
-        status === "OK" && result
-          ? formatSimpleRouteResult(result, mode)
-          : null;
-      if (formatted) onResult(key, formatted);
-    },
-  );
+export function requestSimpleRoute(stopIdx, mode, { schedule, activeIdx, cityData, destination }, onResult) {
+  const s   = schedule[activeIdx]
+  if (!s) return
+  const key = modeResultKey(s.day, stopIdx, mode)
+  const p   = getRouteSegment(s.base, stopIdx, cityData)
+  if (!window.google || !google.maps?.DirectionsService || p.length < 2) return
+  const svc = new google.maps.DirectionsService()
+  svc.route({
+    origin: p[0], destination: p[1],
+    travelMode: mode === 'taxi' ? google.maps.TravelMode.DRIVING : google.maps.TravelMode.WALKING,
+  }, (result, status) => {
+    const formatted = status === 'OK' && result ? formatSimpleRouteResult(result, mode, destination) : null
+    if (formatted) onResult(key, formatted)
+  })
 }
 
 export function requestTransitRoute(
@@ -980,54 +955,22 @@ export function renderRouteMap(
       : null;
   const selectedRoute = transitStep || modeRoute;
 
-  const p =
-    selectedRoute?.start && selectedRoute?.end
-      ? [selectedRoute.start, selectedRoute.end]
-      : getRouteSegment(s.base, activeStopIdx, cityData);
-  const map = new google.maps.Map(el, {
-    center: p[0],
-    zoom: 13,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-  });
-  const bounds = new google.maps.LatLngBounds();
-  const labels =
-    p.length === 1 ? [""] : selectedRoute ? ["S", "E"] : ["출", "도"];
-  const colors =
-    p.length === 1
-      ? ["#0BB97A"]
-      : selectedRoute
-        ? ["#F59E0B", "#29ABE2"]
-        : ["#0BB97A", "#29ABE2"];
+  const p     = selectedRoute?.start && selectedRoute?.end ? [selectedRoute.start, selectedRoute.end] : getRouteSegment(s.base, activeStopIdx, cityData)
+  const map   = new google.maps.Map(el, { center: p[0], zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false })
+  const bounds = new google.maps.LatLngBounds()
+  const labels = p.length === 1 ? [''] : ['출', '도']
+  const colors = p.length === 1 ? ['#0BB97A'] : selectedRoute ? ['#F59E0B', '#29ABE2'] : ['#0BB97A', '#29ABE2']
 
   p.forEach((pt, i) => {
-    bounds.extend(pt);
+    bounds.extend(pt)
+    const labelText = typeof labels[i] === 'string' ? labels[i] : (i === 0 ? '출' : '도')
     new google.maps.Marker({
-      position: pt,
-      map,
-      label: {
-        text: labels[i],
-        color: "#fff",
-        fontWeight: "800",
-        fontSize: "10px",
-      },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 13,
-        fillColor: colors[i] || "#29ABE2",
-        fillOpacity: 1,
-        strokeColor: "#ffffff",
-        strokeWeight: 3,
-      },
-    });
-  });
-  if (p.length === 1) {
-    map.setCenter(p[0]);
-    map.setZoom(15);
-  } else {
-    map.fitBounds(bounds, 48);
-  }
+      position: pt, map,
+      label: { text: labelText, color: '#fff', fontWeight: '800', fontSize: '10px' },
+      icon:  { path: google.maps.SymbolPath.CIRCLE, scale: 13, fillColor: colors[i] || '#29ABE2', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 },
+    })
+  })
+  if (p.length === 1) { map.setCenter(p[0]); map.setZoom(15) } else { map.fitBounds(bounds, 48) }
 
   const routeFallback = () => {
     const path = selectedRoute?.path?.length ? selectedRoute.path : p;
